@@ -528,21 +528,18 @@
   </header>
 
   <nav class="navtabs">
-    <button class="tab-btn active" data-tab="cockpit" onclick="switchTab('cockpit')">🎯 视觉总控舱</button>
-    <button class="tab-btn" data-tab="org" onclick="switchTab('org')">🏛️ 组织架构 &amp; 全景图</button>
-    <button class="tab-btn" data-tab="setup" onclick="switchTab('setup')">🚀 初次使用配置</button>
-    <button class="tab-btn" data-tab="workflow" onclick="switchTab('workflow')">📘 工作流图谱 & 操作手册</button>
-    <button class="tab-btn" data-tab="bus" onclick="switchTab('bus')">📬 跨端会诊信箱</button>
-    <button class="tab-btn" data-tab="explorer" onclick="switchTab('explorer')">📂 论文 / 实验 / 周报</button>
-    <button class="tab-btn" data-tab="skills" onclick="switchTab('skills')">🧠 模型甜点位 & Skill 专区</button>
-    <button class="tab-btn" data-tab="pebrel" onclick="switchTab('pebrel')">⌨️ Pebrel 命令大全</button>
-    <button class="tab-btn" data-tab="ghostty" onclick="switchTab('ghostty')">👻 Ghostty 专属指令</button>
+    <button class="tab-btn active" data-tab="cockpit" onclick="switchTab('cockpit')">🎯 总控驾驶舱</button>
+    <button class="tab-btn" data-tab="bus" onclick="switchTab('bus')">🔬 实验与会诊流</button>
+    <button class="tab-btn" data-tab="explorer" onclick="switchTab('explorer')">📂 课题资产</button>
+    <button class="tab-btn" data-tab="skills" onclick="switchTab('skills')">🤖 模型与应急</button>
+    <button class="tab-btn" data-tab="manual" style="margin-left:auto;" onclick="switchTab('manual')">📚 手册与快捷键</button>
   </nav>
 
   <main class="container">
     <!-- TAB 1: VISUAL COCKPIT -->
     <section id="tab-cockpit" class="tab-pane active">
       <div class="setup-banner" id="setupBanner"></div>
+      <div id="visualTelemetryStrip" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:14px;"></div>
       <div class="hero-grid" id="heroGrid"></div>
 
       <!-- Research Stage Pipeline -->
@@ -601,98 +598,6 @@
           <div class="chip-row" id="redlineChips"></div>
           <div class="chip-row" id="bannedPills"></div>
           <div class="bento-grid" id="decisionBento"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- TAB: FIRST-TIME SETUP WIZARD -->
-    <section id="tab-setup" class="tab-pane">
-      <div class="card">
-        <div class="card-head">
-          <span class="card-title">🚀 初次使用 4 步配置向导（约 2 分钟完成一次，后续开新课题无需重复配）</span>
-          <button class="btn btn-teal btn-xs" onclick="refreshAll()">🔄 填完密钥后点此刷新检测</button>
-        </div>
-        <div class="card-body" style="padding:12px 16px;font-size:13px;color:var(--muted);">
-          本科研流采用<strong>「虚拟机 Claude Desktop（唯一主控）+ 宿主机 Mac（Pebrel 终端手动点火 & Antigravity Gemini）」</strong>双端隔离架构。首次开跑只需按顺序完成下方 4 步即可：
-        </div>
-      </div>
-      <div class="setup-grid" id="setupWizardGrid"></div>
-    </section>
-
-    <!-- TAB 2: VISUAL WORKFLOW & ACCORDION MANUAL -->
-    <section id="tab-workflow" class="tab-pane">
-      <div class="card">
-        <div class="card-head">
-          <span class="card-title">🕸️ 「一脑一手三外围」物理隔离协作架构图</span>
-          <span class="badge badge-pass">0 后台轮询 · 0 复制粘贴</span>
-        </div>
-        <div class="card-body">
-          <div class="arch-flow">
-            <div class="arch-box primary">
-              <div style="font-size:11px;opacity:0.8;">唯一人类司令</div>
-              <div style="font-weight:800;font-size:15px;">你 (PI)</div>
-              <div style="font-size:11.5px;opacity:0.85;margin-top:4px;">只做拍板决策与手动回车点火</div>
-            </div>
-            <div class="arch-arrow">⇄</div>
-            <div class="arch-box">
-              <div style="font-size:11px;color:var(--teal-dark);font-weight:700;">VM 唯一主控与主笔</div>
-              <div style="font-weight:800;font-size:14.5px;color:var(--navy);">Claude Desktop</div>
-              <div style="font-size:11.5px;color:var(--muted);margin-top:4px;">Sonnet 5.5 日常 / Opus 5.5 攻坚<br/>只经本地 filesystem MCP 读写</div>
-            </div>
-            <div class="arch-arrow">⇄</div>
-            <div class="arch-box bus">
-              <div style="font-size:11px;color:var(--teal-dark);font-weight:700;">VirtioFS 零网络共享总线</div>
-              <div style="font-weight:800;font-size:14.5px;color:var(--navy);">_control/ & _bus/</div>
-              <div style="font-size:11.5px;color:var(--muted);margin-top:4px;">课题舱物理隔离 (P01 / P02...)<br/>1500 字摘要单向交接</div>
-            </div>
-            <div class="arch-arrow">⇄</div>
-            <div class="arch-box">
-              <div style="font-size:11px;color:var(--teal-dark);font-weight:700;">宿主机 Mac 动力舱</div>
-              <div style="font-weight:800;font-size:14.5px;color:var(--navy);">Pebrel + Antigravity</div>
-              <div style="font-size:11.5px;color:var(--muted);margin-top:4px;">DeepSeek V4.1 Flash 红队 · GPT 顾问<br/>GLM 5.3 周报 · Gemini 4 读大文献</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-head">
-          <span class="card-title">🧭 会话切换 · 模型升级 · 分支与归档实战手册（已写入各课题 CLAUDE.md）</span>
-          <span class="badge badge-pass">防串台 · 省额度 · 防跑偏</span>
-        </div>
-        <div class="card-body">
-          <div class="bento-grid">
-            <div class="bento-card" style="cursor:default;">
-              <div style="font-weight:700;color:var(--navy);font-size:13.5px;margin-bottom:6px;">🤖 1. 模型调用方式（Agent 架构实况）</div>
-              <div style="font-size:12px;color:var(--ink);line-height:1.6;">
-                • <strong>Claude Desktop (VM)</strong>：官方桌面端 + 本地 Python MCP <code>filesystem</code>（唯一写权限）。<br/>
-                • <strong>GPT 顾问 (<code>advisor</code>)</strong>：<strong>非</strong>启动 Codex CLI Agent，而是 <code>consult.py</code> 读 <code>cc-switch</code> 密钥直接单次 HTTP 调用 <code>responses</code> API（只读提意见）。<br/>
-                • <strong>DeepSeek / GLM</strong>：直接 HTTP 单次调用（目前非流式，等待返回后写回 <code>_bus/reply.md</code> 并打印耗时与 Token）。
-              </div>
-            </div>
-            <div class="bento-card" style="cursor:default;">
-              <div style="font-weight:700;color:var(--navy);font-size:13.5px;margin-bottom:6px;">⬆️ 2. 什么时候开新会话（New Chat）？</div>
-              <div style="font-size:12px;color:var(--ink);line-height:1.6;">
-                • <strong>切换课题</strong>（P01 ↔ P02 必进各自 Project 重开）；<br/>
-                • <strong>切换模型档位</strong>（Sonnet ↔ Opus 必开新会话防上下文污染）；<br/>
-                • <strong>阶段闭环或对话过长（&gt;20 轮）</strong>：先让 Claude 把结论写入 <code>_control/01_PROJECT_STATE.md</code> 与 <code>02_DECISION_LEDGER.md</code>，再开新会话（开局自动读 3 文件，零丢失最省额度）。
-              </div>
-            </div>
-            <div class="bento-card" style="cursor:default;">
-              <div style="font-weight:700;color:var(--navy);font-size:13.5px;margin-bottom:6px;">🚨 3. 模型升级主动提醒机制（CLAUDE.md 第 5 节）</div>
-              <div style="font-size:12px;color:var(--ink);line-height:1.6;">
-                已在所有课题 <code>CLAUDE.md</code> 写入硬约束：平时用 <strong>Sonnet</strong> 跑日常，一旦遇到<strong>立项/防偏航总审、反直觉数据归因、外部会诊冲突仲裁、核心段落定稿</strong>，Claude 必须先停下并提示：<br/>
-                <code>⚠️ 建议升级模型：先写完 State 后新开会话切 Opus 继续。</code>
-              </div>
-            </div>
-            <div class="bento-card" style="cursor:default;">
-              <div style="font-weight:700;color:var(--navy);font-size:13.5px;margin-bottom:6px;">🌿 4. 分支对话与归档（Branch &amp; Archive）怎么用？</div>
-              <div style="font-size:12px;color:var(--ink);line-height:1.6;">
-                • <strong>Claude 分支试探</strong>：想试一个可能推翻主线的想法时，在原对话点“编辑消息/开新分支”；不采纳就丢弃分支不污染主线，采纳后再写入 <code>02_DECISION_LEDGER.md</code>。<br/>
-                • <strong>三级只读归档</strong>：每轮会诊自动存入 <code>_bus/archive/</code>；旧阶段/旧代码封存进 <code>冻结存档-*</code> 或 <code>99_历史归档_Archive/</code>（只读禁改）。
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -779,8 +684,271 @@
       </div>
     </section>
 
+    <!-- TAB: FIRST-TIME SETUP WIZARD -->
+        <section id="tab-manual" class="tab-pane">
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-body" style="padding:10px 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <span style="font-weight:700;color:var(--navy);font-size:13px;margin-right:6px;">📚 参考视图：</span>
+          <button class="scen-btn active" data-msub="workflow" onclick="showManualSub('workflow', this)">📘 工作流图谱 &amp; 手册</button>
+          <button class="scen-btn" data-msub="org" onclick="showManualSub('org', this)">🏛️ 组织架构 &amp; 全景</button>
+          <button class="scen-btn" data-msub="setup" onclick="showManualSub('setup', this)">🚀 初次使用配置</button>
+          <button class="scen-btn" data-msub="pebrel" onclick="showManualSub('pebrel', this)">⌨️ Pebrel 命令</button>
+          <button class="scen-btn" data-msub="ghostty" onclick="showManualSub('ghostty', this)">👻 Ghostty 指令</button>
+        </div>
+      </div>
+      <div id="msub-setup" class="msub-pane" style="display:none;">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🚀 初次使用 4 步配置向导（约 2 分钟完成一次，后续开新课题无需重复配）</span>
+          <button class="btn btn-teal btn-xs" onclick="refreshAll()">🔄 填完密钥后点此刷新检测</button>
+        </div>
+        <div class="card-body" style="padding:12px 16px;font-size:13px;color:var(--muted);">
+          本科研流采用<strong>「虚拟机 Claude Desktop（唯一主控）+ 宿主机 Mac（Pebrel 终端手动点火 & Antigravity Gemini）」</strong>双端隔离架构。首次开跑只需按顺序完成下方 4 步即可：
+        </div>
+      </div>
+      <div class="setup-grid" id="setupWizardGrid"></div>
+    </div>
+      <div id="msub-workflow" class="msub-pane">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🕸️ 「一脑一手三外围」物理隔离协作架构图</span>
+          <span class="badge badge-pass">0 后台轮询 · 0 复制粘贴</span>
+        </div>
+        <div class="card-body">
+          <div class="arch-flow">
+            <div class="arch-box primary">
+              <div style="font-size:11px;opacity:0.8;">唯一人类司令</div>
+              <div style="font-weight:800;font-size:15px;">你 (PI)</div>
+              <div style="font-size:11.5px;opacity:0.85;margin-top:4px;">只做拍板决策与手动回车点火</div>
+            </div>
+            <div class="arch-arrow">⇄</div>
+            <div class="arch-box">
+              <div style="font-size:11px;color:var(--teal-dark);font-weight:700;">VM 唯一主控与主笔</div>
+              <div style="font-weight:800;font-size:14.5px;color:var(--navy);">Claude Desktop</div>
+              <div style="font-size:11.5px;color:var(--muted);margin-top:4px;">Sonnet 5.5 日常 / Opus 5.5 攻坚<br/>只经本地 filesystem MCP 读写</div>
+            </div>
+            <div class="arch-arrow">⇄</div>
+            <div class="arch-box bus">
+              <div style="font-size:11px;color:var(--teal-dark);font-weight:700;">VirtioFS 零网络共享总线</div>
+              <div style="font-weight:800;font-size:14.5px;color:var(--navy);">_control/ & _bus/</div>
+              <div style="font-size:11.5px;color:var(--muted);margin-top:4px;">课题舱物理隔离 (P01 / P02...)<br/>1500 字摘要单向交接</div>
+            </div>
+            <div class="arch-arrow">⇄</div>
+            <div class="arch-box">
+              <div style="font-size:11px;color:var(--teal-dark);font-weight:700;">宿主机 Mac 动力舱</div>
+              <div style="font-weight:800;font-size:14.5px;color:var(--navy);">Pebrel + Antigravity</div>
+              <div style="font-size:11.5px;color:var(--muted);margin-top:4px;">DeepSeek V4.1 Flash 红队 · GPT 顾问<br/>GLM 5.3 周报 · Gemini 4 读大文献</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🧭 会话切换 · 模型升级 · 分支与归档实战手册（已写入各课题 CLAUDE.md）</span>
+          <span class="badge badge-pass">防串台 · 省额度 · 防跑偏</span>
+        </div>
+        <div class="card-body">
+          <div class="bento-grid">
+            <div class="bento-card" style="cursor:default;">
+              <div style="font-weight:700;color:var(--navy);font-size:13.5px;margin-bottom:6px;">🤖 1. 模型调用方式（Agent 架构实况）</div>
+              <div style="font-size:12px;color:var(--ink);line-height:1.6;">
+                • <strong>Claude Desktop (VM)</strong>：官方桌面端 + 本地 Python MCP <code>filesystem</code>（唯一写权限）。<br/>
+                • <strong>GPT 顾问 (<code>advisor</code>)</strong>：<strong>非</strong>启动 Codex CLI Agent，而是 <code>consult.py</code> 读 <code>cc-switch</code> 密钥直接单次 HTTP 调用 <code>responses</code> API（只读提意见）。<br/>
+                • <strong>DeepSeek / GLM</strong>：直接 HTTP 单次调用（目前非流式，等待返回后写回 <code>_bus/reply.md</code> 并打印耗时与 Token）。
+              </div>
+            </div>
+            <div class="bento-card" style="cursor:default;">
+              <div style="font-weight:700;color:var(--navy);font-size:13.5px;margin-bottom:6px;">⬆️ 2. 什么时候开新会话（New Chat）？</div>
+              <div style="font-size:12px;color:var(--ink);line-height:1.6;">
+                • <strong>切换课题</strong>（P01 ↔ P02 必进各自 Project 重开）；<br/>
+                • <strong>切换模型档位</strong>（Sonnet ↔ Opus 必开新会话防上下文污染）；<br/>
+                • <strong>阶段闭环或对话过长（&gt;20 轮）</strong>：先让 Claude 把结论写入 <code>_control/01_PROJECT_STATE.md</code> 与 <code>02_DECISION_LEDGER.md</code>，再开新会话（开局自动读 3 文件，零丢失最省额度）。
+              </div>
+            </div>
+            <div class="bento-card" style="cursor:default;">
+              <div style="font-weight:700;color:var(--navy);font-size:13.5px;margin-bottom:6px;">🚨 3. 模型升级主动提醒机制（CLAUDE.md 第 5 节）</div>
+              <div style="font-size:12px;color:var(--ink);line-height:1.6;">
+                已在所有课题 <code>CLAUDE.md</code> 写入硬约束：平时用 <strong>Sonnet</strong> 跑日常，一旦遇到<strong>立项/防偏航总审、反直觉数据归因、外部会诊冲突仲裁、核心段落定稿</strong>，Claude 必须先停下并提示：<br/>
+                <code>⚠️ 建议升级模型：先写完 State 后新开会话切 Opus 继续。</code>
+              </div>
+            </div>
+            <div class="bento-card" style="cursor:default;">
+              <div style="font-weight:700;color:var(--navy);font-size:13.5px;margin-bottom:6px;">🌿 4. 分支对话与归档（Branch &amp; Archive）怎么用？</div>
+              <div style="font-size:12px;color:var(--ink);line-height:1.6;">
+                • <strong>Claude 分支试探</strong>：想试一个可能推翻主线的想法时，在原对话点“编辑消息/开新分支”；不采纳就丢弃分支不污染主线，采纳后再写入 <code>02_DECISION_LEDGER.md</code>。<br/>
+                • <strong>三级只读归档</strong>：每轮会诊自动存入 <code>_bus/archive/</code>；旧阶段/旧代码封存进 <code>冻结存档-*</code> 或 <code>99_历史归档_Archive/</code>（只读禁改）。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+    </div>
+    <!-- TAB 6: PEBREL COMMANDS CHEATSHEET -->
+    <div id="msub-pebrel" class="msub-pane" style="display:none;">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">⌨️ 宿主机 Pebrel 终端命令大全（已配置于 ~/.zshrc 与 pebrel.luau）</span>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input type="text" id="pebrelSearch" class="tree-search" style="width:240px;margin:0;" placeholder="搜索命令 / 用途 (如 consult / pview / glm)..." oninput="renderPebrelCommands()" />
+            <button class="btn btn-light btn-xs" onclick="copyText('source ~/.zshrc', '已复制 source ~/.zshrc')">🔄 复制刷新环境</button>
+            <button class="btn btn-teal btn-xs" onclick="copyText('open -e \"$HOME/Library/Application Support/Pebrel/pebrel.luau\"', '已复制打开 pebrel.luau 命令')">⚙️ 编辑 pebrel.luau</button>
+          </div>
+        </div>
+        <div class="card-body" style="padding:10px 16px;font-size:12.5px;color:var(--muted);">
+          命令中的 <code>--project</code> 会自动跟随右上角当前选中的课题；新开 Pebrel 标签页自动生效，已开窗口执行一次 <code>source ~/.zshrc</code> 即可。
+        </div>
+      </div>
+
+      <div id="pebrelCmdGrid" class="setup-grid"></div>
+
+      <div class="card" style="margin-top:16px;">
+        <div class="card-head">
+          <span class="card-title">🗂️ Pebrel 侧边栏预设 Profiles（config.profiles）</span>
+          <span style="font-size:12px;color:var(--muted);">可在 Pebrel 左侧栏直接新建对应标签页</span>
+        </div>
+        <div class="card-body" id="pebrelProfilesView"></div>
+      </div>
+    </div>
+
+    <!-- TAB 7: GHOSTTY DEDICATED COMMANDS & SHORTCUTS -->
+    <div id="msub-ghostty" class="msub-pane" style="display:none;">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">👻 Ghostty 专属操作指令大全（macOS 1.4.0 · 与 Pebrel 完全独立分页）</span>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input type="text" id="ghosttySearch" class="tree-search" style="width:240px;margin:0;" placeholder="搜索 Ghostty 快捷键 / +action / 命令..." oninput="renderGhosttyCommands()" />
+            <button class="btn btn-light btn-xs" onclick="copyText('ghostty +validate-config', '已复制配置校验命令')">✅ 复制 +validate-config</button>
+            <button class="btn btn-teal btn-xs" onclick="copyText('ghosttycfg', '已复制打开 Ghostty 配置命令')">⚙️ 编辑 ~/.config/ghostty/config</button>
+          </div>
+        </div>
+        <div class="card-body" style="padding:10px 16px;font-size:12.5px;color:var(--muted);">
+          已在本机 <code>~/.config/ghostty/config</code> 配置 <code>Nord</code> 主题、<code>Menlo 13.5</code>、<code>50MB</code> 滚动历史、选中即复制与 Option 映射为 Alt；在 <code>~/.zshrc</code> 已启用 Ghostty 新标签导航横幅。
+        </div>
+      </div>
+
+      <div id="ghosttyCmdGrid" class="setup-grid"></div>
+    </div>
+
+    <!-- TAB 8: ORG CHART, RESEARCH FLOW, MODULES & CONFIG PATHS -->
+    <div id="msub-org" class="msub-pane" style="display:none;">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🏛️ 多 AI 科研组织架构图（物理隔离 · 唯一主线写权限 · 分层分工）</span>
+          <span class="badge badge-pass">独立全景页 · 零耦合架构</span>
+        </div>
+        <div class="card-body" style="overflow-x:auto;">
+          <svg viewBox="0 0 1080 420" width="100%" style="max-width:1080px;display:block;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC',sans-serif;">
+            <defs>
+              <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#529286"/>
+              </marker>
+              <marker id="arr-warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#C46A2B"/>
+              </marker>
+            </defs>
+
+            <!-- Layer 1: PI -->
+            <rect x="400" y="14" width="280" height="62" rx="12" fill="#0B1C2C"/>
+            <text x="540" y="39" text-anchor="middle" fill="#FFFFFF" font-size="14" font-weight="800">人类 PI（唯一决策司令）</text>
+            <text x="540" y="59" text-anchor="middle" fill="#A5D8CF" font-size="11.5">拍板台账 · 手动触发会诊/实验 · 模型升降档</text>
+
+            <!-- Arrows from PI -->
+            <line x1="460" y1="76" x2="220" y2="120" stroke="#529286" stroke-width="2" marker-end="url(#arr)"/>
+            <line x1="620" y1="76" x2="830" y2="120" stroke="#529286" stroke-width="2" marker-end="url(#arr)"/>
+
+            <!-- Left Column: ClaudeShield VM -->
+            <rect x="24" y="114" width="380" height="288" rx="14" fill="#F3F7F5" stroke="#529286" stroke-width="1.5" stroke-dasharray="6 4"/>
+            <text x="42" y="138" fill="#0B1C2C" font-size="12.5" font-weight="800">🔒 ClaudeShield 隔离虚拟机（无宿主机密钥）</text>
+            <rect x="44" y="152" width="340" height="86" rx="10" fill="#FFFFFF" stroke="#0B1C2C" stroke-width="1.5"/>
+            <text x="214" y="176" text-anchor="middle" fill="#0B1C2C" font-size="13.5" font-weight="800">Claude Desktop（唯一主控 &amp; 唯一项目写者）</text>
+            <text x="214" y="196" text-anchor="middle" fill="#3B4958" font-size="11.5">Sonnet 5.5 日常推进 | Opus 5.5 架构仲裁 | Fable 5.2 精修</text>
+            <text x="214" y="216" text-anchor="middle" fill="#529286" font-size="11" font-weight="700">通过本地 Python MCP (mcp_filesystem_server.py) 挂载</text>
+            <rect x="44" y="256" width="340" height="62" rx="10" fill="#E7F0ED" stroke="#529286" stroke-width="1"/>
+            <text x="214" y="280" text-anchor="middle" fill="#0B1C2C" font-size="12" font-weight="700">硬性保护：冻结存档-20261117 / 冻结件 只读拦截</text>
+            <text x="214" y="300" text-anchor="middle" fill="#3B4958" font-size="11">CLAUDE.md 约束：主动提醒切 Opus · 不宣称红线</text>
+            <rect x="44" y="332" width="340" height="54" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+            <text x="214" y="355" text-anchor="middle" fill="#0B1C2C" font-size="12" font-weight="700">唯一可写范围：当前课题舱</text>
+            <text x="214" y="373" text-anchor="middle" fill="#64748B" font-size="11">_control/ · _bus/ask.md · 01_论文 · 02_实验 · 03_代码</text>
+
+            <!-- Center Column: VirtioFS Shared Bus -->
+            <rect x="430" y="138" width="220" height="248" rx="14" fill="#FFFFFF" stroke="#0072B2" stroke-width="1.8"/>
+            <text x="540" y="164" text-anchor="middle" fill="#0072B2" font-size="12.5" font-weight="800">VirtioFS 零网络共享总线</text>
+            <text x="540" y="182" text-anchor="middle" fill="#64748B" font-size="10.5">宿主机文件交换 ↔ VM Shared Files</text>
+            <rect x="446" y="196" width="188" height="46" rx="8" fill="#F8FAFC" stroke="#CBD5E1"/>
+            <text x="540" y="216" text-anchor="middle" fill="#0B1C2C" font-size="11.5" font-weight="700">00_全局中枢_Hub</text>
+            <text x="540" y="233" text-anchor="middle" fill="#64748B" font-size="10.5">models · 14 Skills · 脚本 · 大屏</text>
+            <rect x="446" y="252" width="188" height="62" rx="8" fill="#E7F0ED" stroke="#529286"/>
+            <text x="540" y="272" text-anchor="middle" fill="#0B1C2C" font-size="11.5" font-weight="700">01_在研课题_Projects</text>
+            <text x="540" y="290" text-anchor="middle" fill="#3B4958" font-size="10.5">P01 染色质插补 | P02 NC综述</text>
+            <text x="540" y="305" text-anchor="middle" fill="#529286" font-size="10">_control/ &amp; _bus/ 单向隔离</text>
+            <rect x="446" y="324" width="188" height="46" rx="8" fill="#F8FAFC" stroke="#CBD5E1"/>
+            <text x="540" y="344" text-anchor="middle" fill="#0B1C2C" font-size="11.5" font-weight="700">02_公共库 &amp; 99_归档</text>
+            <text x="540" y="361" text-anchor="middle" fill="#64748B" font-size="10.5">文献 PDF · 历史只读封存</text>
+
+            <!-- Bidirectional arrows between VM and Bus, Host and Bus -->
+            <line x1="404" y1="256" x2="430" y2="256" stroke="#529286" stroke-width="2" marker-end="url(#arr)" marker-start="url(#arr)"/>
+            <line x1="650" y1="256" x2="676" y2="256" stroke="#529286" stroke-width="2" marker-end="url(#arr)" marker-start="url(#arr)"/>
+
+            <!-- Right Column: Host Mac Powerhouse -->
+            <rect x="676" y="114" width="380" height="288" rx="14" fill="#F8FAFC" stroke="#0B1C2C" stroke-width="1.5"/>
+            <text x="694" y="138" fill="#0B1C2C" font-size="12.5" font-weight="800">⚡ 宿主机 Mac 动力舱（Ghostty / Pebrel / Antigravity）</text>
+
+            <rect x="694" y="152" width="344" height="58" rx="8" fill="#FFFFFF" stroke="#0072B2"/>
+            <text x="708" y="173" fill="#0072B2" font-size="12" font-weight="800">1. 只读外部专家接口（consult.py 实时流式）</text>
+            <text x="708" y="192" fill="#3B4958" font-size="11">DeepSeek (redteam) · GPT (cc-switch advisor) · GLM (s2api) → 只写 reply.md</text>
+
+            <rect x="694" y="218" width="344" height="56" rx="8" fill="#FFFFFF" stroke="#529286"/>
+            <text x="708" y="238" fill="#0B1C2C" font-size="12" font-weight="800">2. Track B 可编辑 PPT 引擎（ppt）</text>
+            <text x="708" y="257" fill="#3B4958" font-size="11">GLM-5.3 + academic-ppt-studio → 只写 04_组会与周报_Weekly/</text>
+
+            <rect x="694" y="282" width="344" height="54" rx="8" fill="#FBFAF5" stroke="#C46A2B"/>
+            <text x="708" y="302" fill="#C46A2B" font-size="12" font-weight="800">3. 受限子模块攻坚（codexbox）+ 0 消耗自通知</text>
+            <text x="708" y="321" fill="#3B4958" font-size="11">codexbox 锁死 03_代码/&lt;子目录&gt; · runnotify / watchdone 盯实验</text>
+
+            <rect x="694" y="344" width="344" height="46" rx="8" fill="#FFFFFF" stroke="#CBD5E1"/>
+            <text x="708" y="364" fill="#0B1C2C" font-size="12" font-weight="800">4. Antigravity 原生 Gemini 4（防封号文献馆长）</text>
+            <text x="708" y="381" fill="#64748B" font-size="11">百万上下文批量读 02_公共资料库 PDF · 维护大屏与中枢基建</text>
+          </svg>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🔄 科研双轨流可视化（Track A 科研主线 × Track B 汇报交付）</span>
+          <span class="badge badge-info">单向隔离 · 不可反向改主线</span>
+        </div>
+        <div class="card-body" id="orgFlowView"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🧩 系统核心模块全景（按职责解耦划分）</span>
+        </div>
+        <div class="card-body" id="orgModulesView"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🗂️ 全部配置文件与核心入口路径清单（点击一键复制路径或打开命令）</span>
+        </div>
+        <div class="card-body" id="orgConfigsView"></div>
+      </div>
+    </div>
+
+    </section>
+
     <!-- TAB 3: BUS MONITOR -->
     <section id="tab-bus" class="tab-pane">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🔬 跨端会诊流水线与历史轮次可视化</span>
+          <span class="badge badge-info">ask.md ➔ consult ➔ reply.md ➔ archive</span>
+        </div>
+        <div class="card-body" id="busFlowVisual"></div>
+      </div>
       <div class="card">
         <div class="card-head">
           <span class="card-title">⚡ 宿主机 Pebrel 手动点火会诊命令</span>
@@ -894,157 +1062,6 @@
       </div>
     </section>
 
-    <!-- TAB 6: PEBREL COMMANDS CHEATSHEET -->
-    <section id="tab-pebrel" class="tab-pane">
-      <div class="card">
-        <div class="card-head">
-          <span class="card-title">⌨️ 宿主机 Pebrel 终端命令大全（已配置于 ~/.zshrc 与 pebrel.luau）</span>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <input type="text" id="pebrelSearch" class="tree-search" style="width:240px;margin:0;" placeholder="搜索命令 / 用途 (如 consult / pview / glm)..." oninput="renderPebrelCommands()" />
-            <button class="btn btn-light btn-xs" onclick="copyText('source ~/.zshrc', '已复制 source ~/.zshrc')">🔄 复制刷新环境</button>
-            <button class="btn btn-teal btn-xs" onclick="copyText('open -e \"$HOME/Library/Application Support/Pebrel/pebrel.luau\"', '已复制打开 pebrel.luau 命令')">⚙️ 编辑 pebrel.luau</button>
-          </div>
-        </div>
-        <div class="card-body" style="padding:10px 16px;font-size:12.5px;color:var(--muted);">
-          命令中的 <code>--project</code> 会自动跟随右上角当前选中的课题；新开 Pebrel 标签页自动生效，已开窗口执行一次 <code>source ~/.zshrc</code> 即可。
-        </div>
-      </div>
-
-      <div id="pebrelCmdGrid" class="setup-grid"></div>
-
-      <div class="card" style="margin-top:16px;">
-        <div class="card-head">
-          <span class="card-title">🗂️ Pebrel 侧边栏预设 Profiles（config.profiles）</span>
-          <span style="font-size:12px;color:var(--muted);">可在 Pebrel 左侧栏直接新建对应标签页</span>
-        </div>
-        <div class="card-body" id="pebrelProfilesView"></div>
-      </div>
-    </section>
-
-    <!-- TAB 7: GHOSTTY DEDICATED COMMANDS & SHORTCUTS -->
-    <section id="tab-ghostty" class="tab-pane">
-      <div class="card">
-        <div class="card-head">
-          <span class="card-title">👻 Ghostty 专属操作指令大全（macOS 1.4.0 · 与 Pebrel 完全独立分页）</span>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <input type="text" id="ghosttySearch" class="tree-search" style="width:240px;margin:0;" placeholder="搜索 Ghostty 快捷键 / +action / 命令..." oninput="renderGhosttyCommands()" />
-            <button class="btn btn-light btn-xs" onclick="copyText('ghostty +validate-config', '已复制配置校验命令')">✅ 复制 +validate-config</button>
-            <button class="btn btn-teal btn-xs" onclick="copyText('ghosttycfg', '已复制打开 Ghostty 配置命令')">⚙️ 编辑 ~/.config/ghostty/config</button>
-          </div>
-        </div>
-        <div class="card-body" style="padding:10px 16px;font-size:12.5px;color:var(--muted);">
-          已在本机 <code>~/.config/ghostty/config</code> 配置 <code>Nord</code> 主题、<code>Menlo 13.5</code>、<code>50MB</code> 滚动历史、选中即复制与 Option 映射为 Alt；在 <code>~/.zshrc</code> 已启用 Ghostty 新标签导航横幅。
-        </div>
-      </div>
-
-      <div id="ghosttyCmdGrid" class="setup-grid"></div>
-    </section>
-
-    <!-- TAB 8: ORG CHART, RESEARCH FLOW, MODULES & CONFIG PATHS -->
-    <section id="tab-org" class="tab-pane">
-      <div class="card">
-        <div class="card-head">
-          <span class="card-title">🏛️ 多 AI 科研组织架构图（物理隔离 · 唯一主线写权限 · 分层分工）</span>
-          <span class="badge badge-pass">独立全景页 · 零耦合架构</span>
-        </div>
-        <div class="card-body" style="overflow-x:auto;">
-          <svg viewBox="0 0 1080 420" width="100%" style="max-width:1080px;display:block;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC',sans-serif;">
-            <defs>
-              <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                <path d="M 0 1 L 10 5 L 0 9 z" fill="#529286"/>
-              </marker>
-              <marker id="arr-warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                <path d="M 0 1 L 10 5 L 0 9 z" fill="#C46A2B"/>
-              </marker>
-            </defs>
-
-            <!-- Layer 1: PI -->
-            <rect x="400" y="14" width="280" height="62" rx="12" fill="#0B1C2C"/>
-            <text x="540" y="39" text-anchor="middle" fill="#FFFFFF" font-size="14" font-weight="800">人类 PI（唯一决策司令）</text>
-            <text x="540" y="59" text-anchor="middle" fill="#A5D8CF" font-size="11.5">拍板台账 · 手动触发会诊/实验 · 模型升降档</text>
-
-            <!-- Arrows from PI -->
-            <line x1="460" y1="76" x2="220" y2="120" stroke="#529286" stroke-width="2" marker-end="url(#arr)"/>
-            <line x1="620" y1="76" x2="830" y2="120" stroke="#529286" stroke-width="2" marker-end="url(#arr)"/>
-
-            <!-- Left Column: ClaudeShield VM -->
-            <rect x="24" y="114" width="380" height="288" rx="14" fill="#F3F7F5" stroke="#529286" stroke-width="1.5" stroke-dasharray="6 4"/>
-            <text x="42" y="138" fill="#0B1C2C" font-size="12.5" font-weight="800">🔒 ClaudeShield 隔离虚拟机（无宿主机密钥）</text>
-            <rect x="44" y="152" width="340" height="86" rx="10" fill="#FFFFFF" stroke="#0B1C2C" stroke-width="1.5"/>
-            <text x="214" y="176" text-anchor="middle" fill="#0B1C2C" font-size="13.5" font-weight="800">Claude Desktop（唯一主控 &amp; 唯一项目写者）</text>
-            <text x="214" y="196" text-anchor="middle" fill="#3B4958" font-size="11.5">Sonnet 5.5 日常推进 | Opus 5.5 架构仲裁 | Fable 5.2 精修</text>
-            <text x="214" y="216" text-anchor="middle" fill="#529286" font-size="11" font-weight="700">通过本地 Python MCP (mcp_filesystem_server.py) 挂载</text>
-            <rect x="44" y="256" width="340" height="62" rx="10" fill="#E7F0ED" stroke="#529286" stroke-width="1"/>
-            <text x="214" y="280" text-anchor="middle" fill="#0B1C2C" font-size="12" font-weight="700">硬性保护：冻结存档-20261117 / 冻结件 只读拦截</text>
-            <text x="214" y="300" text-anchor="middle" fill="#3B4958" font-size="11">CLAUDE.md 约束：主动提醒切 Opus · 不宣称红线</text>
-            <rect x="44" y="332" width="340" height="54" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-            <text x="214" y="355" text-anchor="middle" fill="#0B1C2C" font-size="12" font-weight="700">唯一可写范围：当前课题舱</text>
-            <text x="214" y="373" text-anchor="middle" fill="#64748B" font-size="11">_control/ · _bus/ask.md · 01_论文 · 02_实验 · 03_代码</text>
-
-            <!-- Center Column: VirtioFS Shared Bus -->
-            <rect x="430" y="138" width="220" height="248" rx="14" fill="#FFFFFF" stroke="#0072B2" stroke-width="1.8"/>
-            <text x="540" y="164" text-anchor="middle" fill="#0072B2" font-size="12.5" font-weight="800">VirtioFS 零网络共享总线</text>
-            <text x="540" y="182" text-anchor="middle" fill="#64748B" font-size="10.5">宿主机文件交换 ↔ VM Shared Files</text>
-            <rect x="446" y="196" width="188" height="46" rx="8" fill="#F8FAFC" stroke="#CBD5E1"/>
-            <text x="540" y="216" text-anchor="middle" fill="#0B1C2C" font-size="11.5" font-weight="700">00_全局中枢_Hub</text>
-            <text x="540" y="233" text-anchor="middle" fill="#64748B" font-size="10.5">models · 14 Skills · 脚本 · 大屏</text>
-            <rect x="446" y="252" width="188" height="62" rx="8" fill="#E7F0ED" stroke="#529286"/>
-            <text x="540" y="272" text-anchor="middle" fill="#0B1C2C" font-size="11.5" font-weight="700">01_在研课题_Projects</text>
-            <text x="540" y="290" text-anchor="middle" fill="#3B4958" font-size="10.5">P01 染色质插补 | P02 NC综述</text>
-            <text x="540" y="305" text-anchor="middle" fill="#529286" font-size="10">_control/ &amp; _bus/ 单向隔离</text>
-            <rect x="446" y="324" width="188" height="46" rx="8" fill="#F8FAFC" stroke="#CBD5E1"/>
-            <text x="540" y="344" text-anchor="middle" fill="#0B1C2C" font-size="11.5" font-weight="700">02_公共库 &amp; 99_归档</text>
-            <text x="540" y="361" text-anchor="middle" fill="#64748B" font-size="10.5">文献 PDF · 历史只读封存</text>
-
-            <!-- Bidirectional arrows between VM and Bus, Host and Bus -->
-            <line x1="404" y1="256" x2="430" y2="256" stroke="#529286" stroke-width="2" marker-end="url(#arr)" marker-start="url(#arr)"/>
-            <line x1="650" y1="256" x2="676" y2="256" stroke="#529286" stroke-width="2" marker-end="url(#arr)" marker-start="url(#arr)"/>
-
-            <!-- Right Column: Host Mac Powerhouse -->
-            <rect x="676" y="114" width="380" height="288" rx="14" fill="#F8FAFC" stroke="#0B1C2C" stroke-width="1.5"/>
-            <text x="694" y="138" fill="#0B1C2C" font-size="12.5" font-weight="800">⚡ 宿主机 Mac 动力舱（Ghostty / Pebrel / Antigravity）</text>
-
-            <rect x="694" y="152" width="344" height="58" rx="8" fill="#FFFFFF" stroke="#0072B2"/>
-            <text x="708" y="173" fill="#0072B2" font-size="12" font-weight="800">1. 只读外部专家接口（consult.py 实时流式）</text>
-            <text x="708" y="192" fill="#3B4958" font-size="11">DeepSeek (redteam) · GPT (cc-switch advisor) · GLM (s2api) → 只写 reply.md</text>
-
-            <rect x="694" y="218" width="344" height="56" rx="8" fill="#FFFFFF" stroke="#529286"/>
-            <text x="708" y="238" fill="#0B1C2C" font-size="12" font-weight="800">2. Track B 可编辑 PPT 引擎（ppt）</text>
-            <text x="708" y="257" fill="#3B4958" font-size="11">GLM-5.3 + academic-ppt-studio → 只写 04_组会与周报_Weekly/</text>
-
-            <rect x="694" y="282" width="344" height="54" rx="8" fill="#FBFAF5" stroke="#C46A2B"/>
-            <text x="708" y="302" fill="#C46A2B" font-size="12" font-weight="800">3. 受限子模块攻坚（codexbox）+ 0 消耗自通知</text>
-            <text x="708" y="321" fill="#3B4958" font-size="11">codexbox 锁死 03_代码/&lt;子目录&gt; · runnotify / watchdone 盯实验</text>
-
-            <rect x="694" y="344" width="344" height="46" rx="8" fill="#FFFFFF" stroke="#CBD5E1"/>
-            <text x="708" y="364" fill="#0B1C2C" font-size="12" font-weight="800">4. Antigravity 原生 Gemini 4（防封号文献馆长）</text>
-            <text x="708" y="381" fill="#64748B" font-size="11">百万上下文批量读 02_公共资料库 PDF · 维护大屏与中枢基建</text>
-          </svg>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-head">
-          <span class="card-title">🔄 科研双轨流可视化（Track A 科研主线 × Track B 汇报交付）</span>
-          <span class="badge badge-info">单向隔离 · 不可反向改主线</span>
-        </div>
-        <div class="card-body" id="orgFlowView"></div>
-      </div>
-
-      <div class="card">
-        <div class="card-head">
-          <span class="card-title">🧩 系统核心模块全景（按职责解耦划分）</span>
-        </div>
-        <div class="card-body" id="orgModulesView"></div>
-      </div>
-
-      <div class="card">
-        <div class="card-head">
-          <span class="card-title">🗂️ 全部配置文件与核心入口路径清单（点击一键复制路径或打开命令）</span>
-        </div>
-        <div class="card-body" id="orgConfigsView"></div>
-      </div>
-    </section>
   </main>
 
   <!-- Slide-over Drawer -->
@@ -1150,7 +1167,22 @@
       copyText(full, `已复制：${full}`);
     }
 
+    function showManualSub(subId, btnEl) {
+      document.querySelectorAll(".msub-pane").forEach((el) => {
+        el.style.display = el.id === `msub-${subId}` ? "block" : "none";
+      });
+      document.querySelectorAll("[data-msub]").forEach((b) => {
+        b.classList.toggle("active", b.dataset.msub === subId);
+      });
+    }
+
     function switchTab(tabId) {
+      const manualSubs = ["setup", "workflow", "org", "pebrel", "ghostty"];
+      if (manualSubs.includes(tabId)) {
+        switchTab("manual");
+        showManualSub(tabId);
+        return;
+      }
       document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === tabId));
       document.querySelectorAll(".tab-pane").forEach((p) => p.classList.toggle("active", p.id === `tab-${tabId}`));
     }
@@ -1204,6 +1236,8 @@
       const res = await fetch(`/api/checks?project=${encodeURIComponent(proj)}`);
       currentChecksData = await res.json();
       renderChecksRadar();
+      renderVisualTelemetry();
+      renderBusFlowVisual();
       renderHeroCards();
       if (notify) showToast(`六维体检完成：健康度 ${currentChecksData.score}%`);
     }
@@ -2431,6 +2465,126 @@
     function copyOrgCfg(idx) {
       const c = window._orgConfigCopies && window._orgConfigCopies[idx];
       if (c) copyText(c.copy, `已复制：${c.name}`);
+    }
+
+    function renderVisualTelemetry() {
+      const host = document.getElementById("visualTelemetryStrip");
+      if (!host) return;
+      const checks = (currentChecksData && currentChecksData.checks) || [];
+      const total = checks.length || 6;
+      const pass = checks.filter((c) => c.status === "pass").length;
+      const warn = checks.filter((c) => c.status === "warn").length;
+      const fail = checks.filter((c) => c.status === "fail").length;
+      const pct = total ? Math.round((pass / total) * 100) : 0;
+      const r = 38, circ = 2 * Math.PI * r;
+      const offset = circ * (1 - pct / 100);
+      const ringColor = fail > 0 ? "#DC2626" : warn > 0 ? "#D97706" : "#0F766E";
+
+      const roles = (overviewData && overviewData.roles) || [];
+      const roleMap = Object.fromEntries(roles.map((x) => [x.role, x]));
+      const engines = [
+        { name: "Claude", sub: "主控 / VM", ok: true },
+        { name: "GPT", sub: roleMap.advisor ? roleMap.advisor.model : "advisor", ok: !!(roleMap.advisor && roleMap.advisor.ready) },
+        { name: "DeepSeek", sub: roleMap.redteam ? roleMap.redteam.model : "redteam", ok: !!(roleMap.redteam && roleMap.redteam.ready) },
+        { name: "Gemini 4", sub: "Antigravity", ok: true },
+        { name: "GLM", sub: roleMap.glm_heavy ? roleMap.glm_heavy.model : "glm", ok: !!(roleMap.glm_heavy && roleMap.glm_heavy.ready) },
+      ];
+
+      const busArch = (currentProjectData && currentProjectData.bus && currentProjectData.bus.archive_files) || [];
+      const stateTxt = (currentProjectData && currentProjectData.control && currentProjectData.control.state_md) || "";
+      const hasContract = !!((currentProjectData && currentProjectData.control && currentProjectData.control.contract_md) || "").trim();
+      const hasResults = /COMPLETE_OK|PROBE_OK|已跑完|已锁定/i.test(stateTxt);
+      const hasDraft = /初稿|周报|PPT/i.test(stateTxt);
+      const stages = [
+        { label: "立项契约", done: hasContract },
+        { label: "合成/先导", done: /合成|冒烟|smoke|probe/i.test(stateTxt) },
+        { label: "跨端会诊", done: busArch.length > 0 },
+        { label: "核心实验", done: hasResults },
+        { label: "论文/PPT", done: hasDraft },
+      ];
+
+      host.innerHTML = `
+        <div class="card" style="margin:0;">
+          <div class="card-body" style="display:flex;align-items:center;gap:14px;padding:14px;">
+            <svg width="96" height="96" viewBox="0 0 96 96" style="flex-shrink:0;">
+              <circle cx="48" cy="48" r="${r}" fill="none" stroke="#E2E8F0" stroke-width="9"/>
+              <circle cx="48" cy="48" r="${r}" fill="none" stroke="${ringColor}" stroke-width="9"
+                stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}"
+                stroke-linecap="round" transform="rotate(-90 48 48)"/>
+              <text x="48" y="46" text-anchor="middle" font-size="18" font-weight="800" fill="#102A43">${pass}/${total}</text>
+              <text x="48" y="61" text-anchor="middle" font-size="10.5" fill="#64748B">六维体检</text>
+            </svg>
+            <div style="font-size:12px;line-height:1.7;">
+              <div style="font-weight:700;color:var(--navy);margin-bottom:4px;">系统健康度 ${pct}%</div>
+              <div><span class="badge badge-pass">✅ 通过 ${pass}</span></div>
+              <div style="margin-top:3px;"><span class="badge badge-warn">⚠️ 警告 ${warn}</span> <span class="badge badge-fail">❌ 阻断 ${fail}</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin:0;">
+          <div class="card-body" style="padding:14px;">
+            <div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:10px;">🧭 科研阶段流水线（按三件套与会诊实况推算）</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+              ${stages.map((st, i) => `
+                <div style="flex:1;text-align:center;">
+                  <div style="width:28px;height:28px;margin:0 auto 5px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;
+                    background:${st.done ? "#0F766E" : "#E2E8F0"};color:${st.done ? "#fff" : "#64748B"};">${st.done ? "✓" : i + 1}</div>
+                  <div style="font-size:11.5px;font-weight:700;color:${st.done ? "var(--navy)" : "var(--muted)"};">${st.label}</div>
+                </div>
+                ${i < stages.length - 1 ? `<div style="height:3px;flex:0.4;background:${st.done ? "#14B8A6" : "#E2E8F0"};margin-bottom:18px;border-radius:2px;"></div>` : ""}
+              `).join("")}
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin:0;cursor:pointer;" onclick="switchTab('skills')" title="点击进入模型与应急降级矩阵">
+          <div class="card-body" style="padding:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <span style="font-weight:700;color:var(--navy);font-size:13px;">🤖 五引擎状态灯</span>
+              <span style="font-size:11px;color:var(--teal-dark);">点此切模型/应急 →</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
+              ${engines.map((e) => `
+                <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:7px;background:#F8FAFC;border:1px solid var(--border);font-size:11.5px;">
+                  <span class="dot ${e.ok ? "dot-ok" : "dot-warn"}" style="flex-shrink:0;"></span>
+                  <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                    <strong style="color:var(--navy);">${escapeHtml(e.name)}</strong>
+                    <span style="color:var(--muted);font-size:10.5px;"> ${escapeHtml(e.sub)}</span>
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderBusFlowVisual() {
+      const host = document.getElementById("busFlowVisual");
+      if (!host || !currentProjectData) return;
+      const askChars = (currentProjectData.bus.ask_md || "").length;
+      const replyChars = (currentProjectData.bus.reply_md || "").length;
+      const arch = currentProjectData.bus.archive_files || [];
+      host.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;align-items:center;">
+          <div class="bento-card" style="text-align:center;">
+            <div style="font-size:11px;color:var(--muted);">STEP 1 · 提出问题</div>
+            <div style="font-size:18px;font-weight:800;color:var(--navy);margin:4px 0;">${askChars} 字</div>
+            <div style="font-size:11.5px;color:var(--teal-dark);">_bus/ask.md</div>
+          </div>
+          <div class="bento-card" style="text-align:center;">
+            <div style="font-size:11px;color:var(--muted);">STEP 2 · 外部专家回执</div>
+            <div style="font-size:18px;font-weight:800;color:var(--navy);margin:4px 0;">${replyChars} 字</div>
+            <div style="font-size:11.5px;color:var(--teal-dark);">_bus/reply.md</div>
+          </div>
+          <div class="bento-card" style="text-align:center;">
+            <div style="font-size:11px;color:var(--muted);">STEP 3 · 历史归档轮次</div>
+            <div style="font-size:18px;font-weight:800;color:var(--navy);margin:4px 0;">${arch.length} 轮</div>
+            <div style="font-size:11.5px;color:var(--teal-dark);">_bus/archive/</div>
+          </div>
+        </div>
+      `;
     }
 
     async function loadProject(projName) {
