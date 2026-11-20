@@ -1,0 +1,14 @@
+# Local secrets & runtime state
+.env
+*.env
+.DS_Store
+__pycache__/
+*.pyc
+*.pyo
+*.log
+run_manifest_*.json
+
+# User research projects, library & archives (keep private locally)
+01_在研课题_Projects/
+02_公共资料库_Library/
+99_历史归档_Archive/

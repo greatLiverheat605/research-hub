@@ -1,0 +1,9 @@
+# 00_全局中枢_Hub/policy.toml —— 统一科研保护策略（由 MCP / Codex Sandbox / 大屏共用）
+
+[protection]
+# 虚拟机 MCP 严禁写入/移动/删除的精确目录名或前缀
+protected_dir_names = ["冻结存档-20261117", "冻结件", "99_历史归档_Archive", "00_全局中枢_Hub"]
+protected_prefixes = ["冻结存档-"]
+
+# 只增不删文件（台账）
+append_only_files = ["_control/02_DECISION_LEDGER.md"]
