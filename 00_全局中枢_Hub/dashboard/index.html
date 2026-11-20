@@ -77,7 +77,7 @@
     body.theme-dark .pipe-step.active { background: rgba(245, 158, 11, 0.14); }
     body.theme-dark .todo-item.p1 { background: rgba(239, 68, 68, 0.12); }
     body.theme-dark .todo-item.p2 { background: rgba(245, 158, 11, 0.12); }
-    body.theme-dark [style*="background:#F8FAFC"] { background: rgba(30, 41, 59, 0.55) !important; }
+    body.theme-dark [style*="background:var(--card-inner)"] { background: rgba(30, 41, 59, 0.55) !important; }
     body.theme-dark [style*="background:#FFF7ED"] { background: rgba(245, 158, 11, 0.14) !important; border-color: rgba(245, 158, 11, 0.35) !important; }
     .sticky-chrome { position: sticky; top: 0; z-index: 40; }
     @keyframes appleFade {
@@ -151,7 +151,7 @@
     .tab-btn:hover { color: var(--navy); background: rgba(15, 23, 42, 0.04); }
     .tab-btn.active {
       color: var(--navy);
-      background: #fff;
+      background: var(--card-inner);
       border-color: rgba(15, 23, 42, 0.08);
       box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
     }
@@ -170,7 +170,7 @@
       background: var(--card);
       backdrop-filter: blur(18px);
       -webkit-backdrop-filter: blur(18px);
-      border: 1px solid rgba(255, 255, 255, 0.85);
+      border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 12px;
       box-shadow: var(--shadow);
@@ -214,7 +214,7 @@
       font-size: 12.5px; font-weight: 600; border: 1px solid transparent;
     }
     .seg-btn.active {
-      background: #fff; color: var(--navy); box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+      background: var(--card-inner); color: var(--navy); box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
     }
     .skill-sec { display: none; animation: appleFade 0.22s ease; }
     .skill-sec.active { display: block; }
@@ -317,9 +317,9 @@
       padding: 12px 13px;
       position: relative;
     }
-    .pipe-step.done { border-top: 3px solid var(--ok); background: #F4FBF6; }
+    .pipe-step.done { border-top: 3px solid var(--ok); background: var(--ok-bg); }
     .pipe-step.active { border-top: 3px solid var(--warn); background: #FFFBF2; box-shadow: 0 3px 12px rgba(180, 83, 9, 0.1); }
-    .pipe-step.locked { border-top: 3px solid var(--navy); background: #F4F6F8; }
+    .pipe-step.locked { border-top: 3px solid var(--navy); background: var(--tint); }
     .pipe-step.pending { border-top: 3px solid #94A3B8; }
     .pipe-tag { font-size: 11px; font-weight: 700; margin-bottom: 4px; display: inline-block; }
     .pipe-name { font-weight: 700; font-size: 13px; color: var(--navy); margin-bottom: 4px; }
@@ -341,7 +341,7 @@
       border-radius: 8px;
       padding: 11px 13px;
       margin-bottom: 10px;
-      background: #fff;
+      background: var(--card-inner);
     }
     .todo-item.p1 { border-left-color: #DC2626; background: #FFFBFB; }
     .todo-item.p2 { border-left-color: #D97706; background: #FFFCF7; }
@@ -377,7 +377,7 @@
       border-radius: 9px;
       padding: 10px 13px;
       margin-bottom: 9px;
-      background: #fff;
+      background: var(--card-inner);
     }
     .check-top {
       display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -471,7 +471,7 @@
       border: 1px solid var(--border);
       border-radius: 9px;
       padding: 13px;
-      background: #fff;
+      background: var(--card-inner);
       display: flex; flex-direction: column; justify-content: space-between; gap: 8px;
     }
     .setup-banner {
@@ -533,7 +533,7 @@
       gap: 8px;
       flex-wrap: wrap;
       border-top: 1px dashed var(--border);
-      background: #FAFCFB;
+      background: var(--card-inner);
     }
     .cmd-box {
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -546,7 +546,7 @@
       border: 1px solid var(--border);
       border-radius: 9px;
       margin-bottom: 8px;
-      background: #fff;
+      background: var(--card-inner);
       overflow: hidden;
     }
     details.manual-sec summary {
@@ -569,7 +569,7 @@
     .explorer { display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
     @media (max-width: 960px) { .explorer { grid-template-columns: 1fr; } }
     .file-tree {
-      background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+      background: var(--card-inner); border: 1px solid var(--border); border-radius: var(--radius);
       padding: 12px; max-height: 75vh; overflow-y: auto; box-shadow: var(--shadow);
     }
     .tree-search { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px; font-size: 12.5px; }
@@ -582,7 +582,7 @@
     .skill-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
     .skill-card {
       border: 1px solid var(--border); border-radius: 9px; padding: 13px 15px;
-      background: #fff; cursor: pointer; transition: all 0.15s ease;
+      background: var(--card-inner); cursor: pointer; transition: all 0.15s ease;
       display: flex; flex-direction: column; justify-content: space-between; gap: 8px;
     }
     .skill-card:hover { border-color: var(--teal); transform: translateY(-2px); box-shadow: var(--shadow); }
@@ -598,7 +598,7 @@
     .drawer {
       width: min(760px, 94vw);
       height: 100%;
-      background: #fff;
+      background: var(--card-inner);
       display: flex;
       flex-direction: column;
       box-shadow: -6px 0 28px rgba(0, 0, 0, 0.2);
@@ -740,7 +740,7 @@
             <button class="scen-btn" onclick="renderScenario(5, this)">⑥ 文献精读与问答 (省 Claude 额度)</button>
             <button class="scen-btn" onclick="renderScenario(6, this)">⑦ Colab 云端实验 + Drive 自动回传</button>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;padding:10px 12px;background:#F8FAFC;border:1px solid var(--border);border-radius:10px;margin-bottom:12px;font-size:12px;">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;padding:10px 12px;background:var(--card-inner);border:1px solid var(--border);border-radius:10px;margin-bottom:12px;font-size:12px;">
             <div>
               <div style="color:var(--muted);font-weight:700;margin-bottom:3px;">📜 脚本相对路径</div>
               <input id="tplScript" class="tree-search" style="margin:0;padding:5px 8px;font-size:12px;" value="03_代码与脚本/run.py" oninput="refreshCmdTemplates()" />
@@ -2346,7 +2346,7 @@
             .map((it) => {
               const id = window._pebrelCmdList.push(it) - 1;
               return `
-                <div style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:#F8FAFC;margin-bottom:8px;">
+                <div style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card-inner);margin-bottom:8px;">
                   <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;">
                     <code style="font-size:12px;color:var(--navy);word-break:break-all;">${escapeHtml(it.cmd)}</code>
                     <button class="btn btn-teal btn-xs" style="flex-shrink:0;" onclick="copyPebrelCmd(${id})">📋 复制</button>
@@ -2523,7 +2523,7 @@
             .map((it) => {
               const id = window._ghosttyCmdList.push(it) - 1;
               return `
-                <div style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:#F8FAFC;margin-bottom:8px;">
+                <div style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card-inner);margin-bottom:8px;">
                   <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;">
                     <code style="font-size:12px;color:var(--navy);word-break:break-all;">${escapeHtml(it.cmd)}</code>
                     <button class="btn btn-teal btn-xs" style="flex-shrink:0;" onclick="copyGhosttyCmd(${id})">📋 复制</button>
@@ -2749,7 +2749,7 @@
             </div>
             <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
               ${engines.map((e) => `
-                <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:7px;background:#F8FAFC;border:1px solid var(--border);font-size:11.5px;">
+                <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:7px;background:var(--card-inner);border:1px solid var(--border);font-size:11.5px;">
                   <span class="dot ${e.ok ? "dot-ok" : "dot-warn"}" style="flex-shrink:0;"></span>
                   <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                     <strong style="color:var(--navy);">${escapeHtml(e.name)}</strong>
