@@ -6,37 +6,52 @@
   <title>科研 AI 军团 · 全局多课题总控大屏</title>
   <style>
     :root {
-      --navy: #0B1C2C;
-      --navy-mid: #132C44;
-      --teal: #529286;
-      --teal-dark: #387066;
-      --teal-bg: #E7F0ED;
-      --ink: #1E293B;
-      --muted: #64748B;
-      --bg: #F3F6F5;
-      --card: #FFFFFF;
-      --tint: #F7FAF9;
-      --border: #E2E8E6;
+      --navy: #0F172A;
+      --navy-mid: #1E293B;
+      --teal: #0D9488;
+      --teal-dark: #0F766E;
+      --teal-bg: rgba(13, 148, 136, 0.10);
+      --apple-blue: #0071E3;
+      --ink: #1D1D1F;
+      --muted: #6E6E73;
+      --bg: #F5F5F7;
+      --card: rgba(255, 255, 255, 0.84);
+      --tint: rgba(248, 250, 252, 0.78);
+      --border: rgba(15, 23, 42, 0.08);
       --ok: #15803D;
-      --ok-bg: #DCFCE7;
+      --ok-bg: rgba(34, 197, 94, 0.13);
       --warn: #B45309;
-      --warn-bg: #FEF3C7;
+      --warn-bg: rgba(245, 158, 11, 0.14);
       --err: #B91C1C;
-      --err-bg: #FEE2E2;
-      --blue: #0072B2;
-      --blue-bg: #E0F2FE;
-      --radius: 12px;
-      --shadow: 0 2px 10px rgba(11, 28, 44, 0.05);
+      --err-bg: rgba(239, 68, 68, 0.12);
+      --blue: #0071E3;
+      --blue-bg: rgba(0, 113, 227, 0.10);
+      --radius: 16px;
+      --shadow: 0 4px 20px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.04);
+      --shadow-hover: 0 12px 30px rgba(15, 23, 42, 0.09);
     }
 
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", sans-serif;
       color: var(--ink);
-      background: var(--bg);
+      background:
+        radial-gradient(1200px 600px at 8% -10%, rgba(0, 113, 227, 0.11), transparent 60%),
+        radial-gradient(900px 500px at 92% 0%, rgba(13, 148, 136, 0.12), transparent 55%),
+        var(--bg);
+      background-attachment: fixed;
       font-size: 13.5px;
-      line-height: 1.5;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+    @keyframes appleFade {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulseDot {
+      0%, 100% { box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25); }
+      50% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.08); }
     }
 
     /* Top Header */
@@ -85,26 +100,100 @@
     .btn-light:hover { background: #D4E5E0; }
     .btn-xs { padding: 4px 9px; font-size: 11.5px; border-radius: 6px; }
 
-    /* Nav Tabs */
+    /* Nav Tabs - Apple Frosted Segmented Bar */
     .navtabs {
-      background: #fff;
+      background: rgba(255, 255, 255, 0.72);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
       border-bottom: 1px solid var(--border);
-      padding: 0 24px;
+      padding: 8px 24px;
       display: flex;
       gap: 6px;
       overflow-x: auto;
+      position: sticky;
+      top: 60px;
+      z-index: 35;
     }
     .tab-btn {
       background: transparent; color: var(--muted);
-      padding: 12px 16px; border-radius: 0; border-bottom: 3px solid transparent;
-      font-weight: 600; font-size: 13.5px; white-space: nowrap;
+      padding: 7px 14px; border-radius: 999px; border: 1px solid transparent;
+      font-weight: 600; font-size: 13px; white-space: nowrap;
     }
-    .tab-btn:hover { color: var(--navy); }
-    .tab-btn.active { color: var(--navy); border-bottom-color: var(--teal); }
+    .tab-btn:hover { color: var(--navy); background: rgba(15, 23, 42, 0.04); }
+    .tab-btn.active {
+      color: var(--navy);
+      background: #fff;
+      border-color: rgba(15, 23, 42, 0.08);
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+    }
+
+    /* Blog-style Sticky TOC + Single-Focus Canvas */
+    .blog-layout {
+      display: grid;
+      grid-template-columns: 224px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+    @media (max-width: 960px) { .blog-layout { grid-template-columns: 1fr; } }
+    .blog-toc {
+      position: sticky;
+      top: 118px;
+      background: var(--card);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .toc-title {
+      font-size: 11px; font-weight: 800; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.6px;
+      padding: 2px 8px 6px;
+    }
+    .toc-item {
+      text-align: left;
+      background: transparent;
+      color: var(--ink);
+      padding: 8px 10px;
+      border-radius: 10px;
+      font-size: 12.5px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border: 1px solid transparent;
+    }
+    .toc-item:hover { background: rgba(15, 23, 42, 0.04); }
+    .toc-item.active {
+      background: var(--blue-bg);
+      color: var(--apple-blue);
+      border-color: rgba(0, 113, 227, 0.18);
+    }
+    .blog-sec { display: none; animation: appleFade 0.22s ease; }
+    .blog-sec.active { display: block; }
+    .blog-main.show-all .blog-sec { display: block; }
+    .seg-bar {
+      display: inline-flex; gap: 4px; padding: 4px;
+      background: rgba(15, 23, 42, 0.05); border-radius: 12px; margin-bottom: 14px; flex-wrap: wrap;
+    }
+    .seg-btn {
+      background: transparent; color: var(--muted); padding: 6px 13px; border-radius: 9px;
+      font-size: 12.5px; font-weight: 600; border: 1px solid transparent;
+    }
+    .seg-btn.active {
+      background: #fff; color: var(--navy); box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+    }
+    .skill-sec { display: none; animation: appleFade 0.22s ease; }
+    .skill-sec.active { display: block; }
+    .skills-wrap.show-all .skill-sec { display: block; }
 
     .container { max-width: 1460px; margin: 0 auto; padding: 18px 24px 48px; }
     .tab-pane { display: none; }
-    .tab-pane.active { display: block; }
+    .tab-pane.active { display: block; animation: appleFade 0.22s ease; }
 
     /* Hero Metrics */
     .hero-grid {
@@ -155,18 +244,22 @@
       background: var(--tint); border: 1px solid var(--border); color: var(--navy);
     }
     .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
-    .dot-ok { background: #22C55E; box-shadow: 0 0 0 2px #DCFCE7; }
+    .dot-ok { background: #22C55E; animation: pulseDot 2.2s infinite; }
     .dot-warn { background: #F59E0B; box-shadow: 0 0 0 2px #FEF3C7; }
 
     /* Card Panels */
     .card {
       background: var(--card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       margin-bottom: 16px;
       overflow: hidden;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
     }
+    .card:hover { box-shadow: var(--shadow-hover); }
     .card-head {
       background: var(--tint);
       border-bottom: 1px solid var(--border);
@@ -538,6 +631,18 @@
   <main class="container">
     <!-- TAB 1: VISUAL COCKPIT -->
     <section id="tab-cockpit" class="tab-pane active">
+      <div class="blog-layout">
+        <aside class="blog-toc">
+          <div class="toc-title">驾驶舱章节导航</div>
+          <button class="toc-item active" data-cpsec="overview" onclick="showCockpitSec('overview')"><span>📊 实时仪表盘</span><span>→</span></button>
+          <button class="toc-item" data-cpsec="actions" onclick="showCockpitSec('actions')"><span>⚡ 场景与参数台</span><span>→</span></button>
+          <button class="toc-item" data-cpsec="tasks" onclick="showCockpitSec('tasks')"><span>🔥 待办与体检雷达</span><span>→</span></button>
+          <button class="toc-item" data-cpsec="redlines" onclick="showCockpitSec('redlines')"><span>📌 红线与台账墙</span><span>→</span></button>
+          <div style="border-top:1px solid var(--border);margin:6px 0;"></div>
+          <button id="cpAllBtn" class="btn btn-light btn-xs" style="width:100%;justify-content:center;" onclick="toggleCockpitAll()">📑 展开全览模式</button>
+        </aside>
+        <div id="cockpitBlogMain" class="blog-main">
+          <div id="cpsec-overview" class="blog-sec active">
       <div class="setup-banner" id="setupBanner"></div>
       <div id="visualTelemetryStrip" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:14px;"></div>
       <div class="hero-grid" id="heroGrid"></div>
@@ -557,50 +662,9 @@
         </div>
       </div>
 
-      <!-- Split: Left (Top Todos + Module Bar Chart) | Right (6-Point Live Check Center) -->
-      <div class="split-main">
-        <div>
-          <div class="card">
-            <div class="card-head">
-              <span class="card-title">🔥 当前最高优待办（Top 3 攻坚任务）</span>
-              <span class="badge badge-info" id="todoCountBadge">0 项</span>
-            </div>
-            <div class="card-body" id="todosView"></div>
+
           </div>
-
-          <div class="card">
-            <div class="card-head">
-              <span class="card-title">📊 实验与验证资产分布（点击跳转浏览）</span>
-              <span style="font-size:11.5px;color:var(--muted);">A～E 五大科研模块</span>
-            </div>
-            <div class="card-body" id="moduleBarsView"></div>
-          </div>
-        </div>
-
-        <div>
-          <div class="card">
-            <div class="card-head">
-              <span class="card-title">🩺 六维自动化健康与学术门禁雷达</span>
-              <button class="btn btn-light btn-xs" onclick="runAllChecks(true)">🔄 重新扫描</button>
-            </div>
-            <div class="card-body" id="checksRadarView">加载体检数据中...</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Redline Chips + Decision Bento Wall -->
-      <div class="card">
-        <div class="card-head">
-          <span class="card-title">📌 科研红线指标 & 已冻结决策台账（点击卡片查看详情）</span>
-          <button class="btn btn-light btn-xs" onclick="openRawDrawer('ledger')">📑 查看完整台账表</button>
-        </div>
-        <div class="card-body">
-          <div class="chip-row" id="redlineChips"></div>
-          <div class="chip-row" id="bannedPills"></div>
-          <div class="bento-grid" id="decisionBento"></div>
-        </div>
-      </div>
-
+          <div id="cpsec-actions" class="blog-sec">
       <div class="card">
         <div class="card-head">
           <span class="card-title">⚡ 七大高频科研场景快捷指令台（自动填入当前课题路径 · 含对应 Skill 召唤）</span>
@@ -681,6 +745,60 @@
           <button class="btn btn-light btn-xs" onclick="copyText('open -e \"$EXCHANGE_ROOT/00_全局中枢_Hub/OPERATION_MANUAL.md\"', '已复制打开操作手册命令')">📝 打开手册原文</button>
         </div>
         <div class="card-body" id="manualAccordion"></div>
+      </div>
+
+          </div>
+          <div id="cpsec-tasks" class="blog-sec">
+      <!-- Split: Left (Top Todos + Module Bar Chart) | Right (6-Point Live Check Center) -->
+      <div class="split-main">
+        <div>
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title">🔥 当前最高优待办（Top 3 攻坚任务）</span>
+              <span class="badge badge-info" id="todoCountBadge">0 项</span>
+            </div>
+            <div class="card-body" id="todosView"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title">📊 实验与验证资产分布（点击跳转浏览）</span>
+              <span style="font-size:11.5px;color:var(--muted);">A～E 五大科研模块</span>
+            </div>
+            <div class="card-body" id="moduleBarsView"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title">🩺 六维自动化健康与学术门禁雷达</span>
+              <button class="btn btn-light btn-xs" onclick="runAllChecks(true)">🔄 重新扫描</button>
+            </div>
+            <div class="card-body" id="checksRadarView">加载体检数据中...</div>
+          </div>
+        </div>
+      </div>
+
+
+          </div>
+          <div id="cpsec-redlines" class="blog-sec">
+      <!-- Redline Chips + Decision Bento Wall -->
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">📌 科研红线指标 & 已冻结决策台账（点击卡片查看详情）</span>
+          <button class="btn btn-light btn-xs" onclick="openRawDrawer('ledger')">📑 查看完整台账表</button>
+        </div>
+        <div class="card-body">
+          <div class="chip-row" id="redlineChips"></div>
+          <div class="chip-row" id="bannedPills"></div>
+          <div class="bento-grid" id="decisionBento"></div>
+        </div>
+      </div>
+
+
+          </div>
+        </div>
       </div>
     </section>
 
@@ -1007,6 +1125,16 @@
 
     <!-- TAB 5: MODEL SWEET SPOTS & SKILLS -->
     <section id="tab-skills" class="tab-pane">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <div class="seg-bar">
+          <button class="seg-btn active" data-sksec="sweet" onclick="showSkillSec('sweet')">🎯 五大模型甜点位</button>
+          <button class="seg-btn" data-sksec="failover" onclick="showSkillSec('failover')">🛡️ 断档应急 &amp; 交付指令</button>
+          <button class="seg-btn" data-sksec="roles" onclick="showSkillSec('roles')">🧠 连接状态 &amp; Skill 口令</button>
+        </div>
+        <button id="skAllBtn" class="btn btn-light btn-xs" style="margin-bottom:14px;" onclick="toggleSkillAll()">📑 展开全览模式</button>
+      </div>
+      <div id="skillsWrap" class="skills-wrap">
+        <div id="sksec-sweet" class="skill-sec active">
       <div class="card">
         <div class="card-head">
           <span class="card-title">🎯 五大 AI 供应商最新模型配置 · 黄金甜点位（Sweet Spot）与操作矩阵</span>
@@ -1017,6 +1145,9 @@
         </div>
       </div>
 
+
+        </div>
+        <div id="sksec-failover" class="skill-sec">
       <div class="card">
         <div class="card-head">
           <span class="card-title">🛡️ 任意模型无额度 / 断档应急降级矩阵（单点失灵不停工）</span>
@@ -1031,6 +1162,9 @@
         </div>
       </div>
 
+
+        </div>
+        <div id="sksec-roles" class="skill-sec">
       <div class="card">
         <div class="card-head">
           <span class="card-title">🧠 models.toml 当前激活角色连接状态（脱敏显示）</span>
@@ -1058,6 +1192,9 @@
         </div>
         <div class="card-body">
           <div class="skill-grid" id="skillGrid"></div>
+        </div>
+      </div>
+
         </div>
       </div>
     </section>
@@ -1165,6 +1302,45 @@
       const proj = document.getElementById("projectSelect").value;
       const full = proj ? `${cmd} --project "${proj}"` : cmd;
       copyText(full, `已复制：${full}`);
+    }
+
+    function showCockpitSec(secId) {
+      const main = document.getElementById("cockpitBlogMain");
+      if (main) main.classList.remove("show-all");
+      const btn = document.getElementById("cpAllBtn");
+      if (btn) btn.textContent = "📑 展开全览模式";
+      document.querySelectorAll("#cockpitBlogMain .blog-sec").forEach((el) => {
+        el.classList.toggle("active", el.id === `cpsec-${secId}`);
+      });
+      document.querySelectorAll("[data-cpsec]").forEach((b) => {
+        b.classList.toggle("active", b.dataset.cpsec === secId);
+      });
+    }
+    function toggleCockpitAll() {
+      const main = document.getElementById("cockpitBlogMain");
+      const btn = document.getElementById("cpAllBtn");
+      if (!main) return;
+      const isAll = main.classList.toggle("show-all");
+      if (btn) btn.textContent = isAll ? "📖 切回单章聚焦" : "📑 展开全览模式";
+    }
+    function showSkillSec(secId) {
+      const wrap = document.getElementById("skillsWrap");
+      if (wrap) wrap.classList.remove("show-all");
+      const btn = document.getElementById("skAllBtn");
+      if (btn) btn.textContent = "📑 展开全览模式";
+      document.querySelectorAll("#skillsWrap .skill-sec").forEach((el) => {
+        el.classList.toggle("active", el.id === `sksec-${secId}`);
+      });
+      document.querySelectorAll("[data-sksec]").forEach((b) => {
+        b.classList.toggle("active", b.dataset.sksec === secId);
+      });
+    }
+    function toggleSkillAll() {
+      const wrap = document.getElementById("skillsWrap");
+      const btn = document.getElementById("skAllBtn");
+      if (!wrap) return;
+      const isAll = wrap.classList.toggle("show-all");
+      if (btn) btn.textContent = isAll ? "📖 切回单章聚焦" : "📑 展开全览模式";
     }
 
     function showManualSub(subId, btnEl) {
