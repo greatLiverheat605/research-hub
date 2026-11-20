@@ -21,6 +21,7 @@
 2. **发起外部会诊**：将浓缩在 1500 字以内的背景与 1～3 个具体问题写入 `_bus/ask.md`，然后明确提示 PI 在宿主机 Pebrel 终端进入本课题目录运行 `consult redteam` / `consult advisor` / `consult all`。
 3. **处理回执（`_bus/reply.md`）**：先对照 `_control/02_DECISION_LEDGER.md` 进行参谋长过滤，再向 PI 汇报并给出 A/B 拍板选项。
 4. **实验运行分工**：你在虚拟机内只负责把脚本写入 `03_代码与脚本/`，由 PI 在宿主机 Pebrel 或 Colab 手动执行。
+5. **宿主机指令路径规范（保持虚拟机隔离安全 + 免改路径）**：你仍严格锁定在虚拟机共享目录 `/Volumes/My Shared Files/ClaudeShield-Exchange/` 内工作，不得探测宿主机真实路径；但**凡是给出让 PI 在宿主机终端执行的命令（如 `runnotify`、`colab`、`codexbox`、`mdview`）或交付物路径时，一律使用「相对当前课题根目录的路径」**（例：`03_代码与脚本/run.py`），禁止把 `/Volumes/My Shared Files/...` 前缀写进宿主机命令，确保 PI `p01`/`p02` 切入目录后可直接复制执行。
 
 ## 4. 全局共同 Skill 专区（按需懒加载）
 - 总索引位于：`../../00_全局中枢_Hub/skills/SKILL_INDEX.md`。

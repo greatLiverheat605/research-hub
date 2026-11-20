@@ -523,6 +523,7 @@
       <button class="btn btn-teal" onclick="runAllChecks(true)">🩺 运行六维体检</button>
       <button class="btn btn-glass" onclick="runDryRunDrawer()">🔍 会诊负载预览</button>
       <button class="btn btn-glass" onclick="refreshAll()">🔄 刷新</button>
+      <button id="autoRefreshBtn" class="btn btn-glass" onclick="toggleAutoRefresh()" title="前台可见且未编辑输入框时每 15 秒自动拉取硬盘最新状态">⏱️ 自动刷新：开</button>
     </div>
   </header>
 
@@ -845,6 +846,20 @@
         </div>
         <div class="card-body">
           <div id="sweetSpotGrid" class="setup-grid"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🛡️ 任意模型无额度 / 断档应急降级矩阵（单点失灵不停工）</span>
+          <span class="badge badge-pass">基于 SSOT 三件套热切换</span>
+        </div>
+        <div class="card-body">
+          <div id="failoverGrid" class="bento-grid"></div>
+          <div style="margin-top:12px;padding-top:12px;border-top:1px dashed var(--border);">
+            <div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:8px;">🤝 跨 AI 接管 · 恢复回交 · 子模块验收交付指令（直接复制可用）</div>
+            <div id="handoverGrid" class="bento-grid"></div>
+          </div>
         </div>
       </div>
 
@@ -1593,6 +1608,125 @@
           `;
         })
         .join("");
+
+      const failovers = [
+        {
+          title: "Claude 没额度（主控停摆）",
+          badge: "Antigravity / Codex 临时代理",
+          desc: "用 Antigravity (Gemini 4) 或 Codex 接管：先读 _control/ 三件套，严守不删台账与不动冻结存档红线，并在 01_PROJECT_STATE.md 留接续记录。",
+          label: "📋 复制代理主控接管口令",
+          cmd: `Claude 暂时无额度，请你作为当前课题（${projName}）的临时代理主控：先读取 CLAUDE.md、_control/00_CONTRACT.md、01_PROJECT_STATE.md 与 02_DECISION_LEDGER.md，严守只增不删台账与冻结存档红线，完成当前阶段分析/脚本并在 01_PROJECT_STATE.md 记录本次变更。`,
+        },
+        {
+          title: "GPT 没额度（advisor 断档）",
+          badge: "DeepSeek V4 Pro 顶替",
+          desc: "改用 DeepSeek 重型思考档做深度推演，或在 cc-switch 切到备用渠道后重跑。",
+          label: "📋 复制 DS V4 Pro 顶替命令",
+          cmd: `consult redteam --model deepseek-v4-pro --effort xhigh --eli5 --render --project "${projName}"`,
+        },
+        {
+          title: "DeepSeek 没额度（redteam 断档）",
+          badge: "GPT 兼任红队",
+          desc: "改用 GPT 顾问开极深思考按 Reviewer #2 视角挑刺（或临时用 consult glm_heavy）。",
+          label: "📋 复制 GPT 红队视角命令",
+          cmd: `consult advisor --effort xhigh --eli5 --render --project "${projName}"`,
+        },
+        {
+          title: "Gemini 没额度（Antigravity 断档）",
+          badge: "Claude / GLM / Codex 分担",
+          desc: "短中篇文献拆解与代码排查切回 Claude Sonnet 或 codexbox；中文总结与表格清洗用 GLM Flash。",
+          label: "📋 复制 GLM 极速整理命令",
+          cmd: `consult glm_fast --render --project "${projName}"`,
+        },
+        {
+          title: "GLM 没额度（ppt / 周报断档）",
+          badge: "DeepSeek / 主控 + checkms",
+          desc: "周报大纲与讲稿改用 consult redteam 生成，写完后用本地 0 消耗 checkms 做红线质检。",
+          label: "📋 复制本地 0 消耗体检命令",
+          cmd: `checkms --project "${projName}"`,
+        },
+        {
+          title: "全部外部 API 限流（0 额度推进）",
+          badge: "纯本地/云端算力不停",
+          desc: "runnotify 跑脚本、colab 跑 GPU、watchdone 监听 Drive、mdview 读文档均全程 0 模型额度消耗。",
+          label: "📋 复制 0 消耗自监控命令",
+          cmd: `runnotify python3 "03_代码与脚本/run.py"`,
+        },
+      ];
+      window._failoverList = failovers;
+      const fg = document.getElementById("failoverGrid");
+      if (fg) {
+        fg.innerHTML = failovers
+          .map(
+            (fo, idx) => `
+            <div class="bento-card" style="display:flex;flex-direction:column;justify-content:space-between;gap:8px;">
+              <div>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:4px;">
+                  <strong style="color:var(--navy);font-size:13px;">${escapeHtml(fo.title)}</strong>
+                  <span class="badge badge-info" style="font-size:10.5px;">${escapeHtml(fo.badge)}</span>
+                </div>
+                <div style="font-size:12px;color:var(--muted);line-height:1.5;">${escapeHtml(fo.desc)}</div>
+              </div>
+              <button class="btn btn-light btn-xs" style="align-self:flex-start;" onclick="copyFailoverIdx(${idx})">${escapeHtml(fo.label)}</button>
+            </div>
+          `
+          )
+          .join("");
+      }
+      renderHandoverCards(projName);
+    }
+
+    function copyFailoverIdx(idx) {
+      const fo = window._failoverList && window._failoverList[idx];
+      if (fo) copyText(fo.cmd, `已复制应急指令：${fo.title}`);
+    }
+
+    function renderHandoverCards(projName) {
+      const handovers = [
+        {
+          title: "① 断档接管（交给 Antigravity / Codex 代理主控）",
+          badge: "主控无额度时",
+          desc: "要求代理先读 _control/ 三件套、严守红线，并在 01_PROJECT_STATE.md 留下接续记录。",
+          cmd: `Claude 暂时无额度，请你作为当前课题（${projName}）的临时代理主控：\n1. 先读取 CLAUDE.md、_control/00_CONTRACT.md、_control/01_PROJECT_STATE.md 与 _control/02_DECISION_LEDGER.md；\n2. 严守 00_CONTRACT 红线与“台账只增不删 / 不动冻结存档-*”规则；\n3. 完成本阶段任务后，把改动文件、实测结论与待办写回 _control/01_PROJECT_STATE.md 的【临时代理接续记录】小节，方便原主控恢复后无缝接回。`,
+        },
+        {
+          title: "② 恢复回交（外部/代理跑完 → 交回 Claude 新会话）",
+          badge: "主控恢复后",
+          desc: "让恢复后的 Claude 重读三件套、reply.md 与实验清单，核对一致性后接管主线。",
+          cmd: `请先读取 CLAUDE.md、_control/00_CONTRACT.md、_control/01_PROJECT_STATE.md、_control/02_DECISION_LEDGER.md 以及最新的 _bus/reply.md（或 run_manifest_*.json）。\n此前部分工作已由代理模型/宿主机工具推进并登记在 01_PROJECT_STATE.md。请你核对最新改动是否符合红线，确认后接管主线并给出下一步行动卡。`,
+        },
+        {
+          title: "③ 子模块验收交付（codexbox 完结 → 交主控审查）",
+          badge: "沙盒编码完结",
+          desc: "让主控只读审查 03_代码与脚本/<子模块> 改动、日志与数值口径后决定是否合入。",
+          cmd: `codexbox 已在 03_代码与脚本/<子模块名>/ 完成编码与自测。请审查该子目录下的代码、测试日志与数值口径是否符合 _control/00_CONTRACT.md，确认合格后再决定是否合入主线并更新 _control/01_PROJECT_STATE.md。`,
+        },
+      ];
+      window._handoverList = handovers;
+      const hg = document.getElementById("handoverGrid");
+      if (hg) {
+        hg.innerHTML = handovers
+          .map(
+            (ho, idx) => `
+            <div class="bento-card" style="display:flex;flex-direction:column;justify-content:space-between;gap:8px;">
+              <div>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:4px;">
+                  <strong style="color:var(--navy);font-size:13px;">${escapeHtml(ho.title)}</strong>
+                  <span class="badge badge-pass" style="font-size:10.5px;">${escapeHtml(ho.badge)}</span>
+                </div>
+                <div style="font-size:12px;color:var(--muted);line-height:1.5;">${escapeHtml(ho.desc)}</div>
+              </div>
+              <button class="btn btn-teal btn-xs" style="align-self:flex-start;" onclick="copyHandoverIdx(${idx})">📋 复制交付指令</button>
+            </div>
+          `
+          )
+          .join("");
+      }
+    }
+
+    function copyHandoverIdx(idx) {
+      const ho = window._handoverList && window._handoverList[idx];
+      if (ho) copyText(ho.cmd, `已复制：${ho.title}`);
     }
 
     function copySweetIdx(idx) {
@@ -2332,10 +2466,26 @@
       renderFileTree();
     }
 
+    let autoRefreshEnabled = true;
+
+    function toggleAutoRefresh() {
+      autoRefreshEnabled = !autoRefreshEnabled;
+      const btn = document.getElementById("autoRefreshBtn");
+      if (btn) btn.textContent = autoRefreshEnabled ? "⏱️ 自动刷新：开" : "⏱️ 自动刷新：关";
+      showToast(autoRefreshEnabled ? "已开启每 15 秒自动刷新" : "已暂停自动刷新");
+    }
+
     async function refreshAll() {
       await loadOverview();
       showToast("大屏与六维体检数据已刷新");
     }
+
+    setInterval(() => {
+      if (!autoRefreshEnabled || document.visibilityState !== "visible") return;
+      const tag = document.activeElement ? document.activeElement.tagName : "";
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      loadOverview();
+    }, 15000);
 
     document.getElementById("projectSelect").addEventListener("change", (e) => loadProject(e.target.value));
     loadOverview();

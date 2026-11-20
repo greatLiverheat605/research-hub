@@ -209,3 +209,19 @@ checkms --file "01_在研课题_Projects/<课题目录名>/02_实验与验证/<�
   3. **操作手册与高频口令一键复制台**：内置本手册全文与 8 条高频口令卡片（点击即复制并自动带入当前课题路径）；
   4. **网页一键体检 & 预览**：顶部支持直接点击触发 `checkms` 论文体检与 `consult --dry-run` 负载预览，并实时脱敏显示四大外脑模型的就绪状态。
 - **停止服务命令**：`pkill -f "00_全局中枢_Hub/dashboard/serve.py"`
+
+---
+
+## 七、任意模型无额度 / 断档应急降级矩阵（Model Failover SOP）
+
+由于本工作区将所有状态落盘在纯文本 **SSOT 三件套**（`_control/00_CONTRACT.md`、`01_PROJECT_STATE.md`、`02_DECISION_LEDGER.md`），任何单一模型限流或耗尽额度**都不会导致研究停滞**。按以下矩阵直接热切换：
+
+| 断档/无额度模型 | 临时顶替方案（可立即执行） | 恢复后如何无缝接回 |
+|---|---|---|
+| **Claude (主控 / Sonnet·Opus)** | 1. 切宿主机 **Antigravity (Gemini 4)** 或 **`codexbox` (Codex)** 作为**临时代理主控**；<br>2. 开场要求它先读 `_control/` 三件套并严守 `00_CONTRACT` 与只增不删台账红线；<br>3. 先照常跑 `runnotify` / `colab` / `consult all` / `ppt` / `checkms`（均不耗 Claude）。 | Claude 恢复后新开会话，让它重读 `_control/01_PROJECT_STATE.md` 与代理主控留下的修改日志即可。 |
+| **GPT (`advisor` / `cc-switch`)** | 1. 在 `consult` 中用 DeepSeek 重型档顶替深度推演：`consult redteam --model deepseek-v4-pro --eli5 --render`；<br>2. 或在 `cc-switch` 切换到其他可用渠道后重跑 `consult advisor`；<br>3. 高难度数学裁决也可临时由 **Claude Opus** 或 **Antigravity** 顶上。 | `cc-switch` 恢复或切回原渠道后，`consult advisor` 自动恢复默认模型。 |
+| **DeepSeek (`redteam`)** | 1. 改用 GPT 顾问兼任红队审稿：`consult advisor --effort xhigh --eli5`（在 `_bus/ask.md` 末尾注明“请按 Reviewer #2 红队视角挑刺”）；<br>2. 或临时用 GLM 重型档初筛：`consult glm_heavy`。 | 充值或限流解除后直接恢复 `consult redteam` / `consult all`。 |
+| **Gemini (`Antigravity`)** | 1. 短中篇文献拆解与代码排查改由 **Claude Sonnet** 或 **Codex (`codexbox`)** 接手；<br>2. 中文文献速读/表格整理用 `consult glm_fast` 或 `consult redteam`。 | 配额刷新后继续用 Antigravity 吞吐整批长 PDF。 |
+| **GLM (`ppt` / `glm_heavy`·`glm_fast`)** | 1. 周报大纲与逐页讲稿改用 `consult redteam` 或直接让主控读取 `04_组会与周报_Weekly/README_周报写入规范.md` 生成；<br>2. 仍可用本地 `python-pptx` + `checkms`（0 API 消耗）完成排版与质检。 | GLM 恢复后继续用 `ppt --topic "..."` 迭代幻灯片。 |
+
+> **零额度永远能做的事**：本地/Colab 实验调度与监控（`runnotify` / `colab` / `watchdone`）、文稿红线质检（`checkms`）、终端排版阅读（`mdview`）与总控大屏（`dash`）**全程 0 模型额度消耗**。
