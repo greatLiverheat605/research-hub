@@ -1052,8 +1052,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         params = urllib.parse.parse_qs(parsed.query)
 
-        if parsed.path in ("/", "/index.html"):
+        if parsed.path in ("/", "/index.html", "/gitea"):
             self._send_html(DASHBOARD_DIR / "index.html")
+            return
+
+        if parsed.path == "/api/gitea_flow":
+            import gitea_flow
+            req_proj = (params.get("project") or [""])[0].strip()
+            refresh = (params.get("refresh") or ["0"])[0] == "1"
+            self._send_json(gitea_flow.build_gitea_flow_payload(PROJECTS_DIR, req_proj, live_refresh=refresh))
             return
 
         if parsed.path == '/api/jobs':

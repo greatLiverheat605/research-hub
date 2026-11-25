@@ -714,6 +714,7 @@
 
   <nav class="navtabs">
     <button class="tab-btn active" data-tab="cockpit" onclick="switchTab('cockpit')">🎯 总控驾驶舱</button>
+    <button class="tab-btn" data-tab="gitea" onclick="switchTab('gitea')" style="border:1px solid rgba(15,118,110,0.28);background:rgba(15,118,110,0.08);"><span class="dot dot-ok" style="margin-right:5px;"></span>🌿 Gitea 协作分支线</button>
     <button class="tab-btn" data-tab="bus" onclick="switchTab('bus')">🔬 实验与会诊流</button>
     <button class="tab-btn" data-tab="exptree" onclick="switchTab('exptree')">🌳 实验树与图库</button>
     <button class="tab-btn" data-tab="explorer" onclick="switchTab('explorer')">📂 课题资产</button>
@@ -1261,6 +1262,73 @@
       </div>
     </section>
 
+    <!-- TAB: GITEA REAL-TIME BRANCH & DIRECTION PIPELINE -->
+    <section id="tab-gitea" class="tab-pane">
+      <!-- Top Status & Real-Time Sync Bar -->
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-head" style="padding:12px 16px;">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <span class="dot dot-ok"></span>
+            <span class="card-title" id="giteaTopTitle">🌿 Gitea 实时协作分支流程线（主干 + 四大科研方向支线 + 工单/PR 进展）</span>
+            <span class="badge badge-pass" id="giteaSyncBadge">实时同步在线 · 每 15s 自动拉取</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-size:12px;color:var(--muted);" id="giteaClockMeta">同步时间加载中...</span>
+            <button class="btn btn-teal btn-xs" id="giteaLiveRefreshBtn" onclick="loadGiteaFlow(true)">🔄 立即从远端 Gitea 实时拉取</button>
+            <button class="btn btn-light btn-xs" onclick="openRawDrawer('gitea_inbox')">📬 查看完整同步箱原文</button>
+            <button class="btn btn-light btn-xs" onclick="copyText('请读取 _control/01_PROJECT_STATE.md、05_Gitea协作同步区/PR_STATUS.md 与 ISSUES_DETAIL_INBOX.md，重点对照 #13 评论 ID 89（geometry_strata 分层方向复核与四标记）、#4 评论 ID 79（PR #9/#10 已验收、PR #8 待补成本两行）及 #11/#12，用大白话向我汇报下一步行动卡。', '已复制发给 Claude 的 Gitea 接续口令')">📋 复制 Claude 接续口令</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PART 1: Macro Research Directions & 4 Route Pipelines -->
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-head">
+          <span class="card-title">🗺️ 一、 四大科研方向与交付路线总览（点击任意阶段节点定位下方 Git 分支图）</span>
+          <span style="font-size:12px;color:var(--muted);">绿色=已完成/已科研验收 · 橙色=当前最高优攻坚节点 · 紫色=新立项扩充</span>
+        </div>
+        <div class="card-body" id="giteaDirectionTracksView">正在加载科研路线流...</div>
+      </div>
+
+      <!-- PART 2: Interactive Multi-Lane Git-Branch Graph (Left) + Real-Time Inspector (Right) -->
+      <div style="display:grid;grid-template-columns:minmax(0,1.15fr) 440px;gap:16px;align-items:start;margin-bottom:14px;">
+        <div class="card" style="margin-bottom:0;">
+          <div class="card-head">
+            <span class="card-title">🌿 二、 实时 Git 分支拓扑与工单演进线（main 主干 × 4 条特性/评审分支）</span>
+            <span style="font-size:11.5px;color:var(--muted);">Lane 0: main 主干 ｜ Lane 1: C01 组图 PR ｜ Lane 2: B04 交接与复核 ｜ Lane 3: C04 成本 PR ｜ Lane 4: B03 &amp; 四新法</span>
+          </div>
+          <div class="card-body" id="giteaBranchGraphView" style="padding:0;overflow-x:auto;">正在绘制分支拓扑线...</div>
+        </div>
+
+        <div class="card" style="margin-bottom:0;position:sticky;top:110px;max-height:calc(100vh - 130px);display:flex;flex-direction:column;">
+          <div class="card-head" style="flex-direction:column;align-items:flex-start;gap:4px;">
+            <div style="font-weight:700;font-size:14px;color:var(--navy);line-height:1.35;" id="giteaInspectorTitle">🔍 分支 / 工单实时检视器</div>
+            <div style="font-size:12px;color:var(--muted);" id="giteaInspectorMeta">点击左侧任意分支节点查看 PR 审查、负责人最新指令与本地回复稿</div>
+          </div>
+          <div class="card-body md" id="giteaInspectorBody" style="overflow-y:auto;flex:1;padding:14px 16px;">
+            <div style="color:var(--muted);font-size:13px;">👈 点击左侧分支线上的任意节点（如 <code>ISS-13</code>、<code>PR-9</code>、<code>PR-8</code>、<code>ISS-12</code>）立即检视。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PART 3: Lead Directives + Release Cleanup Ledger + Live Gitea Dispatch Receipts -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">🚨 三、 负责人 (@p02-lead) 最新拍板与纠偏指令实时流</span>
+          </div>
+          <div class="card-body" id="giteaLeadDirectivesView" style="max-height:420px;overflow-y:auto;">加载中...</div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">🧹 四、 Release 大文件交接包台账 &amp; Gitea 自动投单回执</span>
+          </div>
+          <div class="card-body" id="giteaReleasesAndJobsView" style="max-height:420px;overflow-y:auto;">加载中...</div>
+        </div>
+      </div>
+    </section>
+
     <!-- TAB: EXP TREE & GALLERY (3 Construction Modes: Rail Table / Chapter Swimlanes / 2D DAG Canvas) -->
     <section id="tab-exptree" class="tab-pane">
       <!-- Top View Switcher Toolbar -->
@@ -1705,6 +1773,9 @@
       }
       document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === tabId));
       document.querySelectorAll(".tab-pane").forEach((p) => p.classList.toggle("active", p.id === `tab-${tabId}`));
+      if (tabId === "gitea") {
+        loadGiteaFlow(false);
+      }
     }
 
     /* Drawer Controls */
@@ -3690,9 +3761,344 @@
       });
     }
 
-    document.getElementById("projectSelect").addEventListener("change", (e) => loadProject(e.target.value));
+    /* Gitea Real-Time Branch & Direction Pipeline */
+    let giteaFlowData = null;
+    let selectedGiteaNodeId = "ISS-13";
+    const GITEA_LANE_COLORS = ["#0F172A", "#0F766E", "#0284C7", "#D97706", "#7C3AED"];
+
+    async function loadGiteaFlow(liveRefresh = false) {
+      const btn = document.getElementById("giteaLiveRefreshBtn");
+      const badge = document.getElementById("giteaSyncBadge");
+      if (liveRefresh && btn) {
+        btn.disabled = true;
+        btn.textContent = "⏳ 正在拉取远端 Gitea...";
+      }
+      try {
+        const proj = document.getElementById("projectSelect") ? document.getElementById("projectSelect").value : "";
+        const res = await fetch(`/api/gitea_flow?project=${encodeURIComponent(proj)}&refresh=${liveRefresh ? "1" : "0"}`, { cache: "no-store" });
+        giteaFlowData = await res.json();
+        renderGiteaFlow();
+        if (liveRefresh) {
+          showToast(giteaFlowData.sync_message || "Gitea 分支流程线已实时刷新");
+        }
+      } catch (e) {
+        if (badge) badge.textContent = "⚠️ 同步连接异常";
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "🔄 立即从远端 Gitea 实时拉取";
+        }
+      }
+    }
+
+    function renderGiteaFlow() {
+      if (!giteaFlowData || !giteaFlowData.enabled) return;
+      const d = giteaFlowData;
+
+      const topTitle = document.getElementById("giteaTopTitle");
+      if (topTitle) {
+        topTitle.innerHTML = `🌿 Gitea 实时协作分支流程线 · <code>${escapeHtml(d.project)}</code> · 主干 <code>main@${escapeHtml((d.main_head && d.main_head.sha) || "90365de")}</code>`;
+      }
+      const clockMeta = document.getElementById("giteaClockMeta");
+      if (clockMeta) {
+        clockMeta.textContent = `最新同步：${d.last_sync_dual || "-"} ｜ 🕒 北京 ${d.clocks?.beijing || ""} (🗽 VM洛城 ${d.clocks?.vm_la || ""})`;
+      }
+
+      // 1. Render Macro Research Direction & Route Pipelines
+      const tracksEl = document.getElementById("giteaDirectionTracksView");
+      if (tracksEl) {
+        tracksEl.innerHTML = (d.direction_tracks || []).map((tr) => {
+          const bCls = tr.status_badge === "pass" ? "badge-pass" : tr.status_badge === "warn" ? "badge-warn" : "badge-info";
+          const stepsHtml = (tr.steps || []).map((st, idx) => {
+            const isAct = st.state === "active";
+            const bg = isAct ? "#FFFBEB" : "#F0FDF4";
+            const bd = isAct ? "#D97706" : "#16A34A";
+            const dotBg = isAct ? "#D97706" : "#16A34A";
+            return `
+              <div onclick="selectGiteaBranchNode('${escapeHtml(st.node_id)}')" style="flex:1;min-width:170px;cursor:pointer;border:1.5px solid ${bd};background:${bg};border-radius:9px;padding:8px 10px;position:relative;transition:transform 0.12s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'" title="点击在下方分支图与右侧检视器定位 ${escapeHtml(st.node_id)}">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+                  <span style="width:18px;height:18px;border-radius:50%;background:${dotBg};color:#fff;font-size:10.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${isAct ? "🔥" : "✓"}</span>
+                  <strong style="font-size:12px;color:#0F172A;">${escapeHtml(st.label)}</strong>
+                </div>
+                <div style="font-size:11px;color:#475569;padding-left:24px;">${escapeHtml(st.meta)}</div>
+              </div>
+              ${idx < tr.steps.length - 1 ? `<div style="align-self:center;font-weight:800;color:${tr.color};font-size:16px;">➔</div>` : ""}
+            `;
+          }).join("");
+
+          return `
+            <div style="border:1px solid var(--border);border-left:5px solid ${tr.color};border-radius:11px;padding:12px 14px;margin-bottom:11px;background:var(--card-inner);">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                  <span style="background:${tr.color};color:#fff;font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px;">${escapeHtml(tr.tag)}</span>
+                  <strong style="font-size:13.5px;color:var(--navy);">${escapeHtml(tr.title)}</strong>
+                </div>
+                <span class="badge ${bCls}">${escapeHtml(tr.current_status)}</span>
+              </div>
+              <div style="font-size:12px;color:var(--muted);margin-bottom:9px;line-height:1.5;">
+                <strong>🎯 路线目标：</strong>${escapeHtml(tr.direction_summary)}
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:stretch;margin-bottom:8px;">
+                ${stepsHtml}
+              </div>
+              <div style="font-size:12px;background:var(--tint);padding:7px 10px;border-radius:7px;color:var(--ink);">
+                <strong>⚡ 下一步进展动作：</strong>${escapeHtml(tr.next_action)}
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
+
+      // 2. Render Multi-Lane Interactive SVG Git-Branch Graph
+      const graphEl = document.getElementById("giteaBranchGraphView");
+      const nodes = d.branch_nodes || [];
+      if (graphEl && nodes.length) {
+        const rowH = 66;
+        const laneX = (lane) => 24 + lane * 26;
+        const svgW = 148;
+        const totalH = nodes.length * rowH;
+        const idxById = {};
+        nodes.forEach((n, i) => { idxById[n.id] = i; });
+
+        const edgesSvg = [];
+        // Continuous main trunk dashed guide line
+        edgesSvg.push(`<line x1="${laneX(0)}" y1="20" x2="${laneX(0)}" y2="${totalH - 20}" stroke="#CBD5E1" stroke-width="2" stroke-dasharray="4 4"/>`);
+
+        nodes.forEach((n, i) => {
+          const y2 = i * rowH + rowH / 2;
+          const x2 = laneX(n.lane || 0);
+          const col = GITEA_LANE_COLORS[n.lane || 0] || "#0F766E";
+
+          if (n.parent && idxById[n.parent] !== undefined) {
+            const pi = idxById[n.parent];
+            const y1 = pi * rowH + rowH / 2;
+            const x1 = laneX(nodes[pi].lane || 0);
+            if (x1 === x2) {
+              edgesSvg.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="2.6"/>`);
+            } else {
+              const cy1 = y1 + (y2 - y1) * 0.45;
+              const cy2 = y1 + (y2 - y1) * 0.65;
+              edgesSvg.push(`<path d="M ${x1} ${y1} C ${x1} ${cy1}, ${x2} ${cy2}, ${x2} ${y2}" fill="none" stroke="${col}" stroke-width="2.4"/>`);
+            }
+          }
+
+          if (n.merge_target && idxById[n.merge_target] !== undefined) {
+            const mi = idxById[n.merge_target];
+            const ym = mi * rowH + rowH / 2;
+            const xm = laneX(nodes[mi].lane || 0);
+            const dash = n.kind === "pr_merged" ? "" : 'stroke-dasharray="5 3"';
+            const cy1 = y2 + (ym - y2) * 0.4;
+            const cy2 = y2 + (ym - y2) * 0.7;
+            edgesSvg.push(`<path d="M ${x2} ${y2} C ${x2} ${cy1}, ${xm} ${cy2}, ${xm} ${ym}" fill="none" stroke="${col}" stroke-width="2" ${dash} opacity="0.75"/>`);
+          }
+        });
+
+        const dotsSvg = nodes.map((n, i) => {
+          const cy = i * rowH + rowH / 2;
+          const cx = laneX(n.lane || 0);
+          const col = GITEA_LANE_COLORS[n.lane || 0] || "#0F766E";
+          const isSel = n.id === selectedGiteaNodeId;
+          const isAct = n.status === "active";
+          const halo = isSel
+            ? `<circle cx="${cx}" cy="${cy}" r="11" fill="${col}" fill-opacity="0.22"/>`
+            : isAct
+            ? `<circle cx="${cx}" cy="${cy}" r="9.5" fill="#D97706" fill-opacity="0.20"/>`
+            : "";
+          const ringCol = isAct ? "#D97706" : col;
+          return `${halo}<circle cx="${cx}" cy="${cy}" r="${isSel ? 6.5 : 5.2}" fill="${isAct ? "#FFFBEB" : ringCol}" stroke="${ringCol}" stroke-width="2.5"/>`;
+        }).join("");
+
+        const rowsHtml = nodes.map((n, i) => {
+          const isSel = n.id === selectedGiteaNodeId;
+          const isAct = n.status === "active";
+          const col = GITEA_LANE_COLORS[n.lane || 0] || "#0F766E";
+          const badgeHtml = isAct
+            ? `<span class="badge badge-warn">🔥 待推进</span>`
+            : n.kind === "pr_approved"
+            ? `<span class="badge badge-pass">🟢 甲已科研验收</span>`
+            : n.kind === "pr_merged"
+            ? `<span class="badge badge-pass">✅ 已合入 main</span>`
+            : `<span class="badge badge-info">✓ 已就绪</span>`;
+
+          return `
+            <div onclick="selectGiteaBranchNode('${escapeHtml(n.id)}')" style="height:${rowH}px;padding:8px 14px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;cursor:pointer;background:${isSel ? "var(--teal-bg)" : isAct ? "rgba(254,243,199,0.28)" : "transparent"};transition:background 0.12s ease;">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                <div style="display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden;">
+                  <span style="background:${col};color:#fff;font-size:10.5px;font-weight:800;padding:1px 6px;border-radius:4px;flex-shrink:0;">${escapeHtml(n.id)}</span>
+                  <code style="font-size:11px;color:${col};background:var(--tint);padding:1px 6px;border-radius:4px;flex-shrink:0;">${escapeHtml(n.branch)}</code>
+                  <strong style="font-size:12.5px;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(n.title)}</strong>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                  <code style="font-size:10.5px;color:var(--muted);">${escapeHtml(n.sha)}</code>
+                  ${badgeHtml}
+                </div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px;font-size:11.5px;color:var(--muted);">
+                <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(n.subtitle)}</span>
+                <span style="flex-shrink:0;font-size:11px;">${escapeHtml(n.time_dual)}</span>
+              </div>
+            </div>
+          `;
+        }).join("");
+
+        graphEl.innerHTML = `
+          <div style="display:grid;grid-template-columns:${svgW}px minmax(0,1fr);align-items:start;">
+            <svg width="${svgW}" height="${totalH}" viewBox="0 0 ${svgW} ${totalH}" style="display:block;background:var(--tint);border-right:1px solid var(--border);">
+              ${edgesSvg.join("")}
+              ${dotsSvg}
+            </svg>
+            <div>${rowsHtml}</div>
+          </div>
+        `;
+      }
+
+      // 3. Render Lead Directives & Releases + Dispatch Jobs
+      const leadEl = document.getElementById("giteaLeadDirectivesView");
+      if (leadEl) {
+        const dirs = d.lead_directives || [];
+        leadEl.innerHTML = dirs.length
+          ? dirs.map((ld) => `
+              <div onclick="selectGiteaIssueNum(${ld.issue_number})" style="cursor:pointer;border:1px solid var(--border);border-left:4px solid #0284C7;border-radius:8px;padding:10px 12px;margin-bottom:9px;background:var(--card-inner);">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+                  <strong style="color:var(--navy);font-size:12.5px;">工单 #${ld.issue_number} · @${escapeHtml(ld.author)} (评论 ID ${escapeHtml(ld.comment_id)})</strong>
+                  <span style="font-size:11px;color:var(--muted);">${escapeHtml(ld.dual_time)}</span>
+                </div>
+                <div class="md" style="font-size:12px;line-height:1.55;">${renderMarkdown(ld.body.slice(0, 650) + (ld.body.length > 650 ? "\n\n*（点击在右侧检视器查看全文）*" : ""))}</div>
+              </div>
+            `).join("")
+          : '<div style="color:var(--muted);font-size:12.5px;">暂无负责人最新回复。</div>';
+      }
+
+      const relEl = document.getElementById("giteaReleasesAndJobsView");
+      if (relEl) {
+        const rels = (d.releases || []).map((r) => `
+          <div style="border:1px solid var(--border);border-left:4px solid var(--teal);border-radius:7px;padding:7px 10px;margin-bottom:6px;background:var(--card-inner);font-size:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+            <div>
+              <strong style="color:var(--navy);">${escapeHtml(r.asset_name || "")}</strong>
+              <span style="color:var(--muted);"> (${escapeHtml(r.size_mb || "0")} MB · 下载 ${escapeHtml(r.download_count || "0")} 次 · <code>${escapeHtml(r.tag_name || "")}</code>)</span>
+            </div>
+            <span class="badge badge-info">${escapeHtml(r.cleanup_policy || "结单后7-14天清理")}</span>
+          </div>
+        `).join("");
+
+        const jobs = (d.gitea_jobs || []).slice(0, 6).map((j) => `
+          <div style="border:1px solid var(--border);border-radius:7px;padding:6px 10px;margin-bottom:5px;background:var(--tint);font-size:11.5px;display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;">
+            <div>
+              <strong>${escapeHtml(j.id)}</strong> · <code>${escapeHtml(j.action)}</code>
+              <span class="badge ${j.status === "SUCCESS" ? "badge-pass" : "badge-fail"}" style="margin-left:4px;">${escapeHtml(j.status)}</span>
+            </div>
+            <span style="color:var(--muted);">${formatDualTime(j.updated)}</span>
+          </div>
+        `).join("");
+
+        relEl.innerHTML = `
+          <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:6px;">📦 Release 大文件交接包（>10MB 走 Release · 结单 7~14 天清理）：</div>
+          ${rels || '<div style="color:var(--muted);font-size:12px;">暂无 Release 资产。</div>'}
+          <div style="font-size:12px;font-weight:700;color:var(--navy);margin:12px 0 6px;">⚡ 最近 Gitea 自动投单回执 (_dispatch)：</div>
+          ${jobs || '<div style="color:var(--muted);font-size:12px;">暂无 Gitea 投单记录。</div>'}
+        `;
+      }
+
+      selectGiteaBranchNode(selectedGiteaNodeId, true);
+    }
+
+    function selectGiteaIssueNum(issueNum) {
+      if (!giteaFlowData) return;
+      const hit = (giteaFlowData.branch_nodes || []).find((n) => n.issue_num === issueNum);
+      if (hit) selectGiteaBranchNode(hit.id);
+    }
+
+    function selectGiteaBranchNode(nodeId, skipRerender = false) {
+      if (!giteaFlowData) return;
+      selectedGiteaNodeId = nodeId;
+      if (!skipRerender) renderGiteaFlow();
+
+      const node = (giteaFlowData.branch_nodes || []).find((n) => n.id === nodeId) || (giteaFlowData.branch_nodes || [])[0];
+      if (!node) return;
+
+      const issue = node.issue_num ? (giteaFlowData.issues || []).find((it) => it.number === node.issue_num) : null;
+      const pr = node.pr_num ? (giteaFlowData.prs || []).find((p) => p.number === node.pr_num) : null;
+
+      document.getElementById("giteaInspectorTitle").innerHTML = `🌿 ${escapeHtml(node.id)} · ${escapeHtml(node.title)}`;
+      document.getElementById("giteaInspectorMeta").innerHTML = `分支 <code>${escapeHtml(node.branch)}</code> · 提交/标识 <code>${escapeHtml(node.sha)}</code> · ${escapeHtml(node.time_dual)}`;
+
+      let html = `
+        <div style="padding:10px 12px;border-radius:8px;background:var(--tint);border:1px solid var(--border);margin-bottom:12px;font-size:12.5px;line-height:1.6;">
+          <strong>🧭 节点状态与路线位置：</strong><br/>
+          ${escapeHtml(node.detail)}
+        </div>
+      `;
+
+      if (pr) {
+        html += `
+          <div style="padding:10px 12px;border-radius:8px;background:#F0FDF4;border:1px solid #BBF7D0;margin-bottom:12px;font-size:12.5px;">
+            <div style="font-weight:700;color:#166534;margin-bottom:4px;">🔀 关联 PR #${pr.number} (${escapeHtml(pr.state)}) · ${escapeHtml(pr.review_verdict)}</div>
+            <div style="font-size:12px;color:#1E293B;">分支：<code>${escapeHtml(pr.head_branch)}</code> → <code>main</code> ｜ 提交：<code>${escapeHtml(pr.latest_sha || "-")}</code></div>
+            ${pr.lead_note ? `<div style="margin-top:6px;font-size:12px;color:#15803D;">${escapeHtml(pr.lead_note)}</div>` : ""}
+          </div>
+        `;
+      }
+
+      if (issue) {
+        const draftsHtml = (issue.local_drafts || []).map((dr) => `
+          <div style="border:1px dashed var(--teal);border-radius:7px;padding:8px 10px;margin-bottom:6px;background:var(--teal-bg);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <strong style="font-size:12px;color:var(--navy);">📝 本地回复稿：<code>${escapeHtml(dr.name)}</code></strong>
+              <span style="font-size:11px;color:var(--muted);">修改于 ${escapeHtml(dr.mtime)}</span>
+            </div>
+            <div style="font-size:11.5px;color:var(--ink);white-space:pre-wrap;max-height:110px;overflow-y:auto;">${escapeHtml(dr.preview)}</div>
+          </div>
+        `).join("");
+
+        const commentsHtml = (issue.comments || []).slice().reverse().map((c) => {
+          const isLead = c.author.toLowerCase() === "p02-lead";
+          const isMe = c.author.toLowerCase() === "query";
+          const bCol = isLead ? "#0284C7" : isMe ? "#0F766E" : "#64748B";
+          const roleTag = isLead ? "👑 负责人 (甲)" : isMe ? "🙋‍♂️ 我方 (丙)" : "🤝 协作者 (乙)";
+          return `
+            <div style="border:1px solid var(--border);border-left:4px solid ${bCol};border-radius:8px;padding:9px 11px;margin-bottom:8px;background:var(--card-inner);">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;font-size:11.5px;">
+                <strong>${roleTag} @${escapeHtml(c.author)} · ID ${escapeHtml(c.id)}</strong>
+                <span style="color:var(--muted);">${escapeHtml(c.dual_time)}</span>
+              </div>
+              <div class="md" style="font-size:12px;">${renderMarkdown(c.body)}</div>
+            </div>
+          `;
+        }).join("");
+
+        html += `
+          ${draftsHtml ? `<div style="margin-bottom:12px;">${draftsHtml}</div>` : ""}
+          <div style="font-weight:700;font-size:12.5px;color:var(--navy);margin-bottom:6px;">💬 工单 #${issue.number} 最新评论流（共 ${issue.comment_count} 条，倒序展示最新）：</div>
+          ${commentsHtml || '<div style="color:var(--muted);font-size:12px;">暂无评论。</div>'}
+          <details style="margin-top:10px;border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:var(--card-inner);">
+            <summary style="cursor:pointer;font-weight:700;font-size:12px;color:var(--navy);">📄 展开查看工单 #${issue.number} 原始正文</summary>
+            <div class="md" style="margin-top:8px;font-size:12px;">${renderMarkdown(issue.body)}</div>
+          </details>
+        `;
+      }
+
+      document.getElementById("giteaInspectorBody").innerHTML = html;
+    }
+
+    setInterval(() => {
+      if (!autoRefreshEnabled || document.visibilityState !== "visible") return;
+      const gTab = document.getElementById("tab-gitea");
+      if (gTab && gTab.classList.contains("active")) {
+        loadGiteaFlow(false);
+      }
+    }, 15000);
+
+    document.getElementById("projectSelect").addEventListener("change", (e) => {
+      loadProject(e.target.value);
+      const gTab = document.getElementById("tab-gitea");
+      if (gTab && gTab.classList.contains("active")) loadGiteaFlow(false);
+    });
     initCollapsibleCards();
-    loadOverview();
+    loadOverview().then(() => {
+      if (window.location.pathname === "/gitea" || window.location.hash === "#gitea") {
+        switchTab("gitea");
+      }
+    });
   </script>
 </body>
 </html>

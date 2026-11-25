@@ -14,7 +14,7 @@ logs = Path.home()/'Library/Logs/ResearchHub'
 plists = Path.home()/'Library/LaunchAgents'
 target = f'gui/{os.getuid()}'
 files = ['consult.py','models.toml','policy.toml','OPERATION_MANUAL.md','WORKSPACE_INDEX.md','skills/SKILL_INDEX.md','dashboard/serve.py','dashboard/index.html']
-files += ['scripts/'+name+'.py' for name in ('dispatch_worker','check_manuscript','exp_store','issue_inbox','run_stream','rh_checkpoint','colab_checkpoint','colab_jobs','colab_bridge','job_status','protected_paths','service_reload','lit_fetch','scout_bus','context_distiller','privacy_guard')]
+files += ['scripts/'+name+'.py' for name in ('dispatch_worker','check_manuscript','exp_store','issue_inbox','run_stream','rh_checkpoint','colab_checkpoint','colab_jobs','colab_bridge','job_status','protected_paths','service_reload','lit_fetch','scout_bus','context_distiller','privacy_guard','gitea_flow')]
 
 def install():
     logs.mkdir(parents=True,exist_ok=True)
