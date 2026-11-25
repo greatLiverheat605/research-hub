@@ -1444,6 +1444,17 @@
         return row;
       }));
     }
+    function formatDualTime(epochSec) {
+      if (!epochSec) return "-";
+      const d = new Date(epochSec * 1000);
+      try {
+        const bj = d.toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+        const la = d.toLocaleString("zh-CN", { timeZone: "America/Los_Angeles", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
+        return `北京 ${bj} (VM洛城 ${la})`;
+      } catch (_) {
+        return d.toLocaleString();
+      }
+    }
     function renderDispatchVerdictCards(jobs, q) {
       const box = document.getElementById('dispatchVerdictCards');
       if (!box) return;
@@ -1487,7 +1498,7 @@
             </div>
             <div style="display:flex;align-items:center;gap:8px;">
               ${stageStr}
-              <span style="font-size:11px;color:var(--muted);">${new Date(j.updated*1000).toLocaleString()}</span>
+              <span style="font-size:11px;color:var(--muted);">${formatDualTime(j.updated)}</span>
             </div>
           </div>
         `;
@@ -2648,7 +2659,8 @@
     async function loadOverview() {
       const res = await fetch("/api/overview");
       overviewData = await res.json();
-      document.getElementById("topMeta").textContent = `交换区：${overviewData.exchange_root_host} | 刷新：${overviewData.server_time}`;
+      const laClock = overviewData.server_time_la ? ` ｜ 🗽 虚拟机 (LA): ${overviewData.server_time_la}` : "";
+      document.getElementById("topMeta").textContent = `🕒 北京 (项目基准): ${overviewData.server_time} (UTC+8)${laClock} ｜ 交换区：${overviewData.exchange_root_host}`;
       document.getElementById("envFileHint").textContent = `宿主机密钥文件：${overviewData.env_file}`;
 
       const sel = document.getElementById("projectSelect");

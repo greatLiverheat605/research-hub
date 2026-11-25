@@ -591,9 +591,20 @@ def build_overview_payload() -> Dict[str, Any]:
             if sd.is_dir() and (sd / "SKILL.md").is_file()
         ]
 
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    try:
+        from zoneinfo import ZoneInfo
+        bj_str = now_utc.astimezone(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d %H:%M:%S")
+        la_dt = now_utc.astimezone(ZoneInfo("America/Los_Angeles"))
+        la_str = la_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+    except Exception:
+        bj_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        la_str = (now_utc - datetime.timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S PST")
+
     return {
         "app": "research_hub_dashboard",
-        "server_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "server_time": bj_str,
+        "server_time_la": la_str,
         "exchange_root_host": str(EXCHANGE_ROOT),
         "exchange_root_vm": "/Volumes/My Shared Files/ClaudeShield-Exchange",
         "active_project": general.get("active_project", ""),

@@ -82,3 +82,8 @@
 - **文献核验与宿主机深度调研工单（`lit_fetch` & `scout_request`）**：
   - 需快速核验 DOI / 拉取标准 BibTeX 或检索 PubMed/bioRxiv 摘要时，直接向 `_dispatch/pending/<job_id>.json` 投递 `{"job_id":"lit_唯一序号","action":"lit_fetch","query":"关键词","doi":"可选DOI","limit":5,"output":"01_论文与协议/lit_result.json"}`，宿主机 `dispatchd` 自动秒级返回结果到 `_dispatch/done/<job_id>_result.md`。
   - 需宿主机进行多篇文献深度精读（产出《文献事实卡片》）、跨方向发散脑暴或网页调研时，投递 `{"job_id":"scout_唯一序号","action":"scout_request","topic":"调研主题","context":"背景","questions":["问题1"],"target_file":"01_论文与协议/文献事实卡片.md"}`（或写 `_bus/scout_ask.md`），并提醒 PI 在宿主机窗口输入 **「处理调研单」**；完成后回执自动写入 `_bus/scout_reply.md` 并在 `_control/01_PROJECT_STATE.md` 顶部收件箱提醒。
+
+- **双时区日历对齐准则（保持虚拟机 LA 系统时区防风控 + 文档统一用北京日期）**：
+  - 虚拟机系统时钟保持美西时间（`America/Los_Angeles`），**切勿修改虚拟机系统时区**；
+  - 宿主机运行在北京时间（`Asia/Shanghai`, `UTC+8`，比洛杉矶冬令时快 16 小时 / 夏令时快 15 小时），所有宿主机回执（`_dispatch/done/*_result.md`、`_bus/reply.md`）均同时标注北京时间与洛城时间；
+  - **凡写入项目文档（`_control/01_PROJECT_STATE.md`、`02_DECISION_LEDGER.md`、`04_组会与周报_Weekly/YYYY-MM-DD_*` 目录名或 `job_id` 日期后缀）时，一律以宿主机回执上的「北京时间（UTC+8）日期」作为唯一项目日历基准**，严禁混用两套日历日期。

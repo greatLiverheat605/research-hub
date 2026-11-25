@@ -833,13 +833,20 @@ def process_project(project_dir: Path, dotenv: Dict[str, str]) -> int:
                     detail += '\n'+src.read().decode('utf8','replace')
 
         finished = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            from zoneinfo import ZoneInfo
+            now_u = datetime.datetime.now(datetime.timezone.utc)
+            la_fin = now_u.astimezone(ZoneInfo("America/Los_Angeles")).strftime("%Y-%m-%d %H:%M:%S %Z")
+            dual_time_note = f"{started} → {finished} (宿主机北京时间 UTC+8 ｜ 对应虚拟机洛城时间: {la_fin}；项目文档归档日期一律以北京时间日期为准)"
+        except Exception:
+            dual_time_note = f"{started} → {finished} (宿主机北京时间 UTC+8)"
         status_str = "SUCCESS" if ok else "FAILED"
         result_md = (
             f"# 任务回执：{job_id}\n\n"
             f"- **课题**：`{project_dir.name}`\n"
             f"- **白名单动作**：`{action}`\n"
             f"- **状态**：**{status_str}**\n"
-            f"- **开始 / 结束**：{started} → {finished}\n\n"
+            f"- **开始 / 结束**：{dual_time_note}\n\n"
             f"## 执行详情\n{detail}\n"
         )
         result_file = done_dir / f"{job_id}_result.md"
