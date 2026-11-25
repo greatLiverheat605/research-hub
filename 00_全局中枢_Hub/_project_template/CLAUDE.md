@@ -13,16 +13,16 @@
 - `_bus/`：跨端会诊信箱（`ask.md` 写入请求，`reply.md` 接收宿主机端模型回复）。
 - `01_论文与协议/`：研究路线、协议与论文草稿。
 - `02_实验与验证/`：实验记录、评估数据与分析报告。
-- `03_代码与脚本/`：待宿主机 Pebrel 或 Colab 手动运行的脚本。
+- `03_代码与脚本/`：由宿主机白名单执行器运行的脚本。
 - `04_组会与周报_Weekly/`：组会汇报与周报专区（单向只读主线，**按每周二至周日为一周记录档案**，严格遵守内附 `README_周报写入规范.md`）。
 
 ## 3. 权责边界与外部会诊 SOP
-1. **唯一写权限**：除 PI 外，只有你拥有维护本课题源码、文档与 `_control/` 的权限。外部 GPT 顾问与 DeepSeek 红队只读提意见，不直接改项目文件。
-2. **发起外部会诊**：将浓缩在 1500 字以内的背景与 1～3 个具体问题写入 `_bus/ask.md`，然后明确提示 PI 在宿主机 Pebrel 终端进入本课题目录运行 `consult redteam` / `consult advisor` / `consult all`。
-3. **处理回执（`_bus/reply.md`）**：先对照 `_control/02_DECISION_LEDGER.md` 进行参谋长过滤，再向 PI 汇报并给出 A/B 拍板选项。
-4. **实验运行分工**：你在虚拟机内只负责把脚本写入 `03_代码与脚本/`，由 PI 在宿主机 Pebrel 或 Colab 手动执行。
+1. **唯一写权限**：除 PI 外，只有你拥有维护本课题源码、文档与 `_control/` 的权限。外部专家顾问与红队审稿通道只读提意见，不直接改项目文件。
+2. **发起外部会诊**：将浓缩在 1500 字以内的背景与 1～3 个具体问题写入 `_bus/ask.md`，然后明确提示 PI 在宿主机终端进入本课题目录运行 `consult redteam` / `consult advisor` / `consult all --eli5`（若遇到方向走偏、不断打数学补丁死循环，提示运行 `consult all --pivot --eli5` 开启去台账锚定的破局会诊）。
+3. **处理回执（`_bus/reply.md`）**：常规迭代先对照 `_control/02_DECISION_LEDGER.md` 进行参谋长过滤；**但当 PI 怀疑方向走偏或处于 `--pivot` 破局模式时，解除旧台账锁定，允许推翻或降维旧决定**（旧路线移入归档，新决定以新 `D-xxx` 记录）。
+4. **实验运行分工**：对已放行的实验，写完脚本必须主动投递任务。用唯一 job_id，先写非 JSON 临时文件，再原子改名为 `_dispatch/pending/<job_id>.json`。本地示例 `{"job_id":"job_001","action":"local_py","script":"03_代码与脚本/run.py","args":[]}`。本机结果写入 `02_实验与验证/`。远程用 `win_codex_py` 或已配置节点的 `remote_py`。运行中读 `_dispatch/running/<job_id>.log`，结束读 `_dispatch/done/<job_id>_result.md`。测试集封存、负责人放行和课题预算继续有效。
 5. **宿主机指令路径规范（保持虚拟机隔离安全 + 免改路径）**：你仍严格锁定在虚拟机共享目录 `/Volumes/My Shared Files/ClaudeShield-Exchange/` 内工作，不得探测宿主机真实路径；但**凡是给出让 PI 在宿主机终端执行的命令（如 `runnotify`、`colab`、`codexbox`、`mdview`）或交付物路径时，一律使用「相对当前课题根目录的路径」**（例：`03_代码与脚本/run.py`），禁止把 `/Volumes/My Shared Files/...` 前缀写进宿主机命令，确保 PI `p01`/`p02` 切入目录后可直接复制执行。
-6. **免复制粘贴任务总线（`_dispatch/`）**：需要宿主机执行白名单任务（`local_py` / `win_codex_py` / `tailscale_cp`）时，可将任务 JSON 写入 `_dispatch/pending/job_<序号>.json`，由宿主机 `dispatchd --watch` 静默跑完并写回 `_dispatch/done/<job_id>_result.md`；当 PI 回复「接续」时优先读取最新回执并排错。（**大文件硬性约束**：超过 10MB 的结果包/压缩包必须走 `tailscale_cp` 通过 Tailscale 传输，严禁提交进 Git/PR；Gitea 同步动作默认关闭，仅在明确开通 `.gitea_repo.json` 的课题中可用 `gitea_pull` / `gitea_push_pr` / `gitea_pr_status` / `gitea_create_issue` / `gitea_comment_issue`，且禁止用虚拟机内置浏览器直连 Tailscale Gitea。）
+6. **免复制粘贴任务总线（`_dispatch/`）**：需要宿主机执行白名单任务（`local_py` / `win_codex_py` / `tailscale_cp`）时，必须主动将任务 JSON 写入 `_dispatch/pending/job_<序号>.json`，由宿主机 `dispatchd --watch` 静默跑完并写回 `_dispatch/done/<job_id>_result.md`；当 PI 回复「接续」时优先读取最新回执并排错。（**大文件硬性约束**：P02 超过 10MB 的结果包通过 Gitea Release 临时交接，结单后 7～14 天清理，严禁提交进 Git/PR；Gitea 同步动作默认关闭，仅在明确开通 `.gitea_repo.json` 的课题中可用 `gitea_pull` / `gitea_push_pr` / `gitea_pr_status` / `gitea_create_issue` / `gitea_comment_issue`，且禁止用虚拟机内置浏览器直连 Tailscale Gitea。）
 
 ## 4. 全局共同 Skill 专区（按需懒加载）
 - 总索引位于：`../../00_全局中枢_Hub/skills/SKILL_INDEX.md`。
@@ -53,15 +53,28 @@
      - 引用核对 → `citation-check`；阶段验收前 → `verification`；
      - 编写本地/Colab 实验脚本 → `ml-experiment-hygiene`；审稿回复 → `peer-review-rebuttal`；投稿打包前 → `submission-package-check`。
    - 标准提醒话术：`🛠️ Skill 提醒：当前涉及【环节】，建议加载 Skill「<skill_name>」（请回复“加载并按此规范执行”）。`
-6. **向 PI 汇报的「人话 / ELI5」表达原则（不影响正文学术严谨性）**：
+6. **向 PI 汇报的「人话 / ELI5」与「方向破局防死循环」原则（不影响正文学术严谨性）**：
    - 写入论文正文、`_control/` 台账或组会正式讲稿时，保持严格学术表述；
-   - **但在对话框直接向 PI 解释复杂统计、数学矛盾、报错原因或总结 `_bus/reply.md` 选项时**，默认采用**「先说人话（ELI5 类比/白话结论）→ 再附严格学术口径与关键数字」**的方式，确保 PI 无需硬啃术语就能秒懂利弊并拍板。若 PI 回复 `ELI5`，立即用更通俗的日常类比重写解释。
-7. **外部 AI 主动分流提醒与「下一步由你执行」行动卡**：
-   - **什么时候提醒 PI 对接外部 AI**：
-     - 批量精读多篇 PDF / 文献拆解 → 提醒 PI 转宿主机 **Antigravity (`Gemini 4`)** 产出《文献事实卡片》；
-     - 抓信息泄漏、基线不公与过度宣称 → 写 `_bus/ask.md`，提醒 PI 在 Ghostty 跑 `consult redteam`（**DeepSeek**）；
-     - 复杂数学/统计学门禁裁决 → 写 `_bus/ask.md`，提醒 PI 跑 `consult advisor` 或 `consult all --eli5`（**GPT + DeepSeek**）；
-     - 制作/迭代组会可编辑 PPT → 提醒 PI 在 Ghostty 跑 `ppt --topic "..."`（**GLM-5.3**）；
-     - 独立算法子模块闭环写测 → 提醒 PI 用 `codexbox` 锁定在 `03_代码与脚本/<子模块>/` 内跑（**Codex CLI**）。
+   - **但在对话框直接向 PI 解释复杂统计、数学矛盾、报错原因或总结 `_bus/reply.md` 选项时**，默认采用**「先列术语白话对照表（代号 → 一句话人话含义 → 为什么卡住）→ 再说白话结论 → 最后附严格学术口径」**，严禁堆砌内部缩写代号让 PI 猜。
+   - **方向破局（Anti-Loop / Pivot）**：当同一路线连续 2 次实验门禁未通过或 PI 提出“方向是不是走错了/死循环”时，**立即停止在原假设上继续叠加数学补丁**，主动切换为「第一性原理审视」：列出 **① 砍线换方向（Pivot） ② 降维做减法（Simplify） ③ 设一票否决线再试最后一次（Hard Stop）** 三个白话选项供 PI 拍板。
+7. **宿主机专项工具分流提醒与「下一步由你执行」行动卡**：
+   - **什么时候提醒 PI 调用宿主机专项通道**：
+     - 批量精读多篇 PDF / 文献拆解 → 提醒 PI 在宿主机运行文献拆解流程产出《文献事实卡片》；
+     - 抓信息泄漏、基线不公与过度宣称 → 写 `_bus/ask.md`，提醒 PI 在宿主机终端跑 `consult redteam --eli5`；
+     - 复杂数学/统计学门禁裁决 → 写 `_bus/ask.md`，提醒 PI 跑 `consult advisor --eli5` 或 `consult all --eli5`；
+     - 怀疑科研方向走偏、陷入打补丁死循环 → 写 `_bus/ask.md`（只写核心问题与碰壁数据，不带旧补丁包袱），提醒 PI 跑 `consult all --pivot --eli5`；
+     - 制作/迭代组会可编辑 PPT → 提醒 PI 在宿主机终端跑 `ppt --topic "..."`；
+     - 独立算法子模块闭环写测 → 提醒 PI 用 `codexbox` 锁定在 `03_代码与脚本/<子模块>/` 内跑。
    - **每次回复末尾必须给出明确行动卡**（让 PI 一眼知道现在该干嘛）：
-     - 固定以 **`👉 下一步需要你做什么：`** 结尾，写明去哪一端（`留在本对话` / `切宿主机 Ghostty 粘贴命令` / `跑 Colab` / `切 Antigravity Gemini` / `新开 Opus 会话`）以及可直接复制执行的 1 行指令或 A/B 选择。
+     - 已获放行且在白名单内的任务，请在本轮用文件工具实际投递，并核对任务文件或回执。回复 PI 时给出真实 `job_id` 和已观察到的状态（已投递、运行中、成功或失败）。只有实际需要 PI 拍板、当前会话无法写入队列，或运行环境超出白名单时，才说明下一步需要 PI 做什么。投递失败时给出具体工具错误。
+
+已开通 Gitea 的课题由宿主机每 120 秒同步工单正文与评论到 `05_Gitea协作同步区/ISSUES_DETAIL_INBOX.md`。接续时先核对负责人最新回执。P02 外部协作者只访问 Gitea，结果包走 Release，结单后 7～14 天清理。
+
+### 宿主机实验回执、Colab 与 Gitea 交付
+- PI 要求运行已放行的实验时，在当前对话使用文件工具实际写入本课题 `_dispatch/pending/`。仅把聊天文字或 Gitea Issue 写出来都不会触发实验。回复可查询的真实 job_id。先核对 pending、running、done，再据实报告状态。失败时读 done 中的回执和日志，说明哪一步失败、产物是否回收、Colab 是否释放。检索不到任务时报告未找到。
+- `colab_check` 仅检查后台认证与活动会话数。`colab_py` 用 `script`、`args`、`timeout_s`、`accelerator`、`inputs` 和 `outputs`。入口在 `03_代码与脚本`，输入和输出填 `02_实验与验证` 下的课题相对路径。云端脚本在 `/content` 中按文件名读取输入、产生输出。例 `{"job_id":"job_唯一序号","action":"colab_py","script":"03_代码与脚本/run.py","accelerator":"CPU","inputs":["02_实验与验证/input.json"],"outputs":["02_实验与验证/新运行/result.json"]}`。只向云端提交获准上传的数据。实验时长不确定时省略 `timeout_s`，仅在 PI 指定截止时填写正整数秒。需要 Drive 的无人值守工单用 `drive_inputs`、`drive_outputs` 列出已绑定课题文件夹内的相对文件名，在脚本内用 `Path(os.environ["RH_DRIVE_DIR"])` 定位暂存目录，跳过 `drive.mount()`。列出的最终产物在完工时回传。
+- Colab 长实验默认在工单设置稳定的 `checkpoint_key`（如 `train_fold1_v1`）。脚本从 `rh_checkpoint` 导入 `resume_path`、`resume_step`、`commit`。入口先检查 `resume_path()`，有文件就恢复全部必要状态，从已完成步骤的下一步继续。按实验轮次、批次或阶段选择保存频率，将所需状态写入一个关闭的文件，再调用 `commit(step, 文件路径)`。提交会结束本段，Mac 分片校验落盘后自动重新进入脚本。每段的初始化和输出应可重复执行。训练脚本应保存权重、优化器、步数，以及实验所需的随机状态、采样器和调度器状态。长时间单次黑盒调用需先找到工具自己的保存与恢复接口。
+- 在 running 或 done 日志读到“检查点已保存到 Mac”才报告对应步数。PI 说“接续”时，使用原课题、原 `checkpoint_key`、脚本、参数及输入，新建 `job_id` 正常投单。最新两次已完成的检查点保存在宿主机。
+- 已开通 Gitea 的课题可投 `gitea_set_issue_state`（`issue_number` 与 `state` open/closed）、`gitea_issue_attachment`（`issue_number`、`file`，可选 `comment_id`）、`gitea_release_upload`（`tag`、`file`，需新建时显式 `create_release:true`）。超过 10 MB 的包走 Release。P02 验收和结单按负责人回执执行。结单后 7～14 天清理临时交接包。
+
+- 需要在宿主机大屏展示长实验进度时，在每个适当的批次或阶段完成后单独输出一行，例如 `print('RH_PROGRESS '+json.dumps({"phase":"训练", "done":epoch+1, "total":epochs}, ensure_ascii=False), flush=True)`，先 `import json`。`done` 和 `total` 使用同一阶段的计数单位。总量未知时省略 `total`。

@@ -28,7 +28,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 
 HUB_DIR = Path(__file__).resolve().parent
-EXCHANGE_ROOT = HUB_DIR.parent
+EXCHANGE_ROOT = Path(os.environ.get("RH_EXCHANGE_ROOT", HUB_DIR.parent))
 PROJECTS_DIR = EXCHANGE_ROOT / "01_在研课题_Projects"
 
 
@@ -292,8 +292,8 @@ def _read_ledger_tail(path: Path, limit: int) -> str:
     return f"{header}\n\n...（中间较早台账已省略，以下为最新决策记录）\n\n{tail_part}"
 
 
-def build_user_payload(project_dir: Path, config: Dict[str, Any]) -> Tuple[str, Dict[str, int]]:
-    """Build combined prompt from 00_CONTRACT, 02_DECISION_LEDGER, and _bus/ask.md."""
+def build_user_payload(project_dir: Path, config: Dict[str, Any], pivot: bool = False) -> Tuple[str, Dict[str, int]]:
+    """Build combined prompt from 00_CONTRACT, 02_DECISION_LEDGER (unless pivot=True), and _bus/ask.md."""
     general = config.get("general", {})
     max_contract = int(general.get("max_contract_chars", 6000))
     max_ledger = int(general.get("max_ledger_chars", 6000))
@@ -306,15 +306,32 @@ def build_user_payload(project_dir: Path, config: Dict[str, Any]) -> Tuple[str, 
         raise FileNotFoundError(f"未找到会诊请求单：{ask_path}")
 
     contract_txt = _read_truncated(contract_path, max_contract)
-    ledger_txt = _read_ledger_tail(ledger_path, max_ledger)
+    ledger_txt = "" if pivot else _read_ledger_tail(ledger_path, max_ledger)
     ask_txt = ask_path.read_text(encoding="utf-8").strip()
 
-    combined = (
-        f"# 课题名称：{project_dir.name}\n\n"
-        f"## [参考约束一] 科研红线契约 (00_CONTRACT.md)\n{contract_txt}\n\n"
-        f"## [参考约束二] 已冻结决策台账 (02_DECISION_LEDGER.md)\n{ledger_txt}\n\n"
-        f"## [本次核心会诊请求] (_bus/ask.md)\n{ask_txt}\n"
-    )
+    if pivot:
+        combined = (
+            f"# 课题名称：{project_dir.name}（🚨 方向破局与去锚定重审模式 --pivot）\n\n"
+            f"## [破局会诊最高准则：解除历史台账锁定]\n"
+            f"当前课题可能陷入了「在既有假设上不断打数学/工程补丁的死循环（Patchwork Loop）」。\n"
+            f"本次会诊已**刻意屏蔽历史决策台账 (`02_DECISION_LEDGER.md`)**，以免你被过去的沉没成本锚定。\n"
+            f"请完全从第一性原理出发，严格按以下三部分结构回答：\n"
+            f"1. **【黑话与术语白话对照表】**：把当前问题中涉及的所有内部代号、检验门禁或数学缩写，列成三列表格：`术语/代号 | 一句话人话含义（日常类比） | 它现在为什么卡住了/是不是伪需求`。\n"
+            f"2. **【死循环病根诊断】**：直白指出当前方向是不是把简单问题复杂化了？哪些约束是作茧自缚？\n"
+            f"3. **【Kill / Simplify / Pivot 三选一拍板卡】**：\n"
+            f"   - **方案 A（Simplify 降维减法）**：保留核心科学问题，直接砍掉哪些繁琐假设/门禁，退回什么最简可跑通形态？\n"
+            f"   - **方案 B（Pivot 换方向/换故事）**：利用现有数据和代码资产，转向哪个更容易发文章、逻辑更顺的科学故事？\n"
+            f"   - **方案 C（Hard Stop 最后一搏）**：如果再试最后一次当前路线，设什么「一票否决指标（Kill Signal）」一旦不过就彻底放弃？\n\n"
+            f"## [参考背景] 原立项契约 (00_CONTRACT.md，允许批评与修改)\n{contract_txt}\n\n"
+            f"## [本次核心破局请求] (_bus/ask.md)\n{ask_txt}\n"
+        )
+    else:
+        combined = (
+            f"# 课题名称：{project_dir.name}\n\n"
+            f"## [参考约束一] 科研红线契约 (00_CONTRACT.md)\n{contract_txt}\n\n"
+            f"## [参考约束二] 已冻结决策台账 (02_DECISION_LEDGER.md)\n{ledger_txt}\n\n"
+            f"## [本次核心会诊请求] (_bus/ask.md)\n{ask_txt}\n"
+        )
     stats = {
         "contract_chars": len(contract_txt),
         "ledger_chars": len(ledger_txt),
@@ -813,17 +830,27 @@ def call_role_api(runtime: Dict[str, Any], user_prompt: str, stream: bool = True
 # 5. Output Formatting & CLI Entrypoint
 # ---------------------------------------------------------------------------
 
-def write_reply_and_archive(project_dir: Path, results: List[Dict[str, Any]]) -> Tuple[Path, Path]:
+def write_reply_and_archive(project_dir: Path, results: List[Dict[str, Any]], pivot: bool = False) -> Tuple[Path, Path]:
     """Write aggregated response to _bus/reply.md and save a timestamped archive copy."""
     now = datetime.datetime.now()
     ts_human = now.strftime("%Y-%m-%d %H:%M:%S")
     ts_slug = now.strftime("%Y%m%d-%H%M%S")
 
+    if pivot:
+        chief_hint = (
+            "> **主控提示（🚨 方向破局模式 `--pivot`）**：本次会诊已**解除 `_control/02_DECISION_LEDGER.md` 历史台账锁定**！"
+            "严禁用旧台账驳回新方向。请先向 PI 呈现【术语白话对照表】与【Simplify 降维 / Pivot 换方向 / Hard Stop 一票否决】三选一白话拍板卡。"
+        )
+    else:
+        chief_hint = (
+            "> **主控提示**：请 Claude 对照 `_control/02_DECISION_LEDGER.md` 进行参谋长过滤，驳回越权建议，仅向 PI 呈报可拍板的 A/B 选项。"
+        )
+
     lines = [
         "# _bus/reply.md —— 外部专家会诊回执",
         "",
         f"> **课题**：`{project_dir.name}` | **生成时间**：{ts_human}",
-        "> **主控提示**：请 Claude 对照 `_control/02_DECISION_LEDGER.md` 进行参谋长过滤，驳回越权建议，仅向 PI 呈报可拍板的 A/B 选项。",
+        chief_hint,
         "",
         "---",
         "",
@@ -881,6 +908,11 @@ def main() -> int:
     )
     parser.add_argument("--no-stream", action="store_true", help="关闭实时流式输出，改为静默并发等待全部返回")
     parser.add_argument("--eli5", action="store_true", help="要求专家每条专业结论后附带通俗大白话（ELI5）解释")
+    parser.add_argument(
+        "--pivot",
+        action="store_true",
+        help="方向破局模式：屏蔽 02_DECISION_LEDGER.md 历史台账死锁锚定，强制输出【术语白话对照表】与【降维/换方向/一票否决】三选一卡片",
+    )
     parser.add_argument("--render", action="store_true", help="结束后调用 glow 在终端排版渲染 _bus/reply.md")
     parser.add_argument("--dry-run", action="store_true", help="仅预览上下文大小、目标端点、模型与思考档位，不发起网络请求")
     args = parser.parse_args()
@@ -891,12 +923,12 @@ def main() -> int:
     dotenv = load_dotenv(env_path)
 
     project_dir = resolve_project_dir(args.project, config)
-    user_prompt, stats = build_user_payload(project_dir, config)
-    if args.eli5:
+    user_prompt, stats = build_user_payload(project_dir, config, pivot=args.pivot)
+    if args.eli5 or args.pivot:
         user_prompt += (
-            "\n\n## [表达要求：ELI5 通俗解释]\n"
+            "\n\n## [表达要求：ELI5 通俗解释与黑话拆解]\n"
             "请先给每条专业审稿/数学结论配上一句通俗易懂的大白话或生活类比（ELI5），"
-            "再用严谨科研术语给出量化依据，方便 PI 快速直观拍板。\n"
+            "严禁直接甩出未解释的缩写代号，再用严谨科研术语给出量化依据，方便 PI 快速直观拍板。\n"
         )
 
     target_roles = ["redteam", "advisor"] if args.target == "all" else [args.target]
@@ -946,7 +978,7 @@ def main() -> int:
         with concurrent.futures.ThreadPoolExecutor(max_workers=len(runtimes)) as pool:
             results = list(pool.map(lambda rt: call_role_api(rt, user_prompt, stream=False), runtimes))
 
-    reply_path, archive_path = write_reply_and_archive(project_dir, results)
+    reply_path, archive_path = write_reply_and_archive(project_dir, results, pivot=args.pivot)
     print("\n================ 本轮会诊汇总 ================")
     for res in results:
         status = "OK" if not res["error"] else f"FAILED ({res['error']})"
