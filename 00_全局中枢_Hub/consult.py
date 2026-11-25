@@ -720,7 +720,9 @@ def call_role_api(runtime: Dict[str, Any], user_prompt: str, stream: bool = True
     include_effort = True
     include_stream_opts = True
 
-    for attempt in range(3):
+    import time
+    max_attempts = 4
+    for attempt in range(max_attempts):
         body = _build_request_body(runtime, user_prompt, stream=stream, include_effort=include_effort, include_stream_opts=include_stream_opts)
         encoded = json.dumps(body, ensure_ascii=False).encode("utf-8")
 
@@ -783,10 +785,16 @@ def call_role_api(runtime: Dict[str, Any], user_prompt: str, stream: bool = True
                 }
             except urllib.error.HTTPError as e:
                 err_body = e.read().decode("utf-8", errors="replace")[:400]
-                if e.code in (404, 502, 503, 504) and idx + 1 < len(urls):
+                if e.code == 404 and idx + 1 < len(urls):
                     last_err = e
                     continue
-                if e.code == 400 and attempt < 2:
+                if e.code in (429, 500, 502, 503, 504) and attempt + 1 < max_attempts:
+                    last_err = e
+                    wait_s = 1.5 * (attempt + 1)
+                    print(f"⏳ [{runtime['role']}] 上游节点繁忙 (HTTP {e.code})，{wait_s:.1f}s 后自动重连健康节点 ({attempt + 1}/{max_attempts - 1})...", flush=True)
+                    time.sleep(wait_s)
+                    break
+                if e.code == 400 and attempt + 1 < max_attempts:
                     lower_err = err_body.lower()
                     retried = False
                     if include_stream_opts and "stream_options" in lower_err:
@@ -818,6 +826,11 @@ def call_role_api(runtime: Dict[str, Any], user_prompt: str, stream: bool = True
                 }
             except Exception as e:
                 last_err = e
+                if attempt + 1 < max_attempts:
+                    wait_s = 1.5 * (attempt + 1)
+                    print(f"⏳ [{runtime['role']}] 网络波动 ({type(e).__name__})，{wait_s:.1f}s 后自动重试 ({attempt + 1}/{max_attempts - 1})...", flush=True)
+                    time.sleep(wait_s)
+                    break
                 break
         else:
             break
