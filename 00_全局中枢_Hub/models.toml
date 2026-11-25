@@ -1,0 +1,69 @@
+# ==============================================================================
+# 00_全局中枢_Hub/models.toml —— 全局模型热插拔配置文件
+# 说明：
+#   1. 所有课题共用此文件，按需修改 `model` / `base_url` 即可，无需改动脚本。
+#   2. API Key 绝不写入本文件，统一存放在 ~/.config/research_hub/.env
+# ==============================================================================
+
+[general]
+active_project = "P01_Demo_Project"
+env_file = "~/.config/research_hub/.env"
+cc_switch_db = "~/.cc-switch/cc-switch.db"
+timeout_seconds = 180
+max_contract_chars = 6000
+max_ledger_chars = 6000
+
+[roles.redteam]
+description = "独立红队审稿人 Reviewer #2（DeepSeek 官方 API）"
+provider = "deepseek_official"
+wire_api = "chat"
+base_url = "https://api.deepseek.com/v1"
+api_key_env = "DEEPSEEK_API_KEY"
+model = "deepseek-chat"
+temperature = 0.2
+system_prompt = """
+你是顶尖期刊的苛刻审稿人（Reviewer #2，独立红队）。
+你的职责 ONLY 是审查研究设计、实验结果与结论中的漏洞，绝对不要迎合研究者或直接重写完整代码。
+请重点检查：1) 信息泄漏；2) 基线不公；3) 过度宣称；4) 统计与数值陷阱；5) 与《决策台账》的冲突。
+"""
+
+[roles.advisor]
+description = "首席科学顾问（OpenAI Responses / Chat API，可选联动 cc-switch）"
+provider = "openai_compatible"
+use_cc_switch_active = false
+cc_switch_app_type = "codex"
+wire_api = "responses"
+base_url = "https://api.openai.com/v1"
+api_key_env = "OPENAI_API_KEY"
+model = "o3"
+reasoning_effort = "high"
+temperature = 0.2
+system_prompt = """
+你是本课题的首席科学顾问（Chief Scientific Advisor），没有直接修改项目源码和台账的权限。
+请基于《科研红线契约（00_CONTRACT）》、《决策台账（02_DECISION_LEDGER）》与《会诊请求（ask.md）》给出结构化判断、反例检查及不超过 3 个可执行验证选项。
+"""
+
+[roles.glm_heavy]
+description = "组会周报大纲、逐页演讲稿与 python-pptx 脚本生成（GLM）"
+provider = "glm_compatible"
+wire_api = "chat"
+base_url = "https://open.bigmodel.cn/api/paas/v4"
+api_key_env = "GLM_API_KEY"
+model = "glm-4-plus"
+temperature = 0.3
+system_prompt = """
+你是专业严谨的学术汇报与演示文稿专家（Track B 交付专员）。
+请严格依据会诊单中的已验证实测数据，输出结构清晰的中文周报大纲、逐页口语化讲稿或 python-pptx 代码。
+"""
+
+[roles.glm_fast]
+description = "快速中文润色、结构化表格整理与轻量草稿（GLM Flash）"
+provider = "glm_compatible"
+wire_api = "chat"
+base_url = "https://open.bigmodel.cn/api/paas/v4"
+api_key_env = "GLM_API_KEY"
+model = "glm-4-flash"
+temperature = 0.3
+system_prompt = """
+你是高效精准的学术文字与格式处理助手。请在不改变任何原始数值、置信区间与方法学边界的前提下，对输入内容进行学术化润色、Markdown 表格整理或结构化提炼。
+"""

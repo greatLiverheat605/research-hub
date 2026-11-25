@@ -1,0 +1,3476 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>科研 AI 军团 · 全局多课题总控大屏</title>
+  <style>
+    :root {
+      --navy: #0F172A;
+      --navy-mid: #334155;
+      --teal: #0D9488;
+      --teal-dark: #0F766E;
+      --teal-bg: rgba(13, 148, 136, 0.09);
+      --apple-blue: #0284C7;
+      --ink: #1E293B;
+      --text: #1E293B;
+      --muted: #64748B;
+      --bg: #F4F6F9;
+      --card: #FFFFFF;
+      --tint: #F8FAFC;
+      --border: #E2E8F0;
+      --ok: #15803D;
+      --ok-bg: rgba(22, 163, 74, 0.11);
+      --warn: #B45309;
+      --warn-bg: rgba(217, 119, 6, 0.12);
+      --err: #B91C1C;
+      --err-bg: rgba(220, 38, 38, 0.10);
+      --blue: #0284C7;
+      --blue-bg: rgba(2, 132, 199, 0.10);
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
+      --shadow-hover: 0 4px 12px rgba(15, 23, 42, 0.07);
+      --card-inner: #F8FAFC;
+      --rail-ink: #64748B;
+    }
+
+    * { box-sizing: border-box; }
+    html { min-height: 100%; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "PingFang SC", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      font-size: 13px;
+      line-height: 1.5;
+      font-variant-numeric: tabular-nums;
+      -webkit-font-smoothing: antialiased;
+    }
+    body.theme-dark {
+      --navy: #F8FAFC;
+      --navy-mid: #CBD5E1;
+      --ink: #E2E8F0;
+      --text: #E2E8F0;
+      --muted: #94A3B8;
+      --bg: #0B0F17;
+      --card: #111827;
+      --card-inner: #1A2333;
+      --tint: #161F30;
+      --border: rgba(148, 163, 184, 0.18);
+      --teal: #14B8A6;
+      --teal-dark: #5EEAD4;
+      --teal-bg: rgba(20, 184, 166, 0.15);
+      --apple-blue: #38BDF8;
+      --blue: #38BDF8;
+      --blue-bg: rgba(56, 189, 248, 0.15);
+      --ok: #4ADE80;
+      --ok-bg: rgba(34, 197, 94, 0.16);
+      --warn: #FBBF24;
+      --warn-bg: rgba(245, 158, 11, 0.16);
+      --err: #F87171;
+      --err-bg: rgba(239, 68, 68, 0.16);
+      --rail-ink: #94A3B8;
+      background: #0B0F17;
+    }
+    body.theme-dark .navtabs { background: rgba(17, 24, 39, 0.92); }
+    body.theme-dark .tab-btn.active,
+    body.theme-dark .seg-btn.active { background: #1E293B; color: #F8FAFC; border-color: rgba(148, 163, 184, 0.25); }
+    body.theme-dark .bento-card,
+    body.theme-dark .setup-card,
+    body.theme-dark .hero-card { background: #111827; border-color: var(--border); }
+    body.theme-dark .tree-search,
+    body.theme-dark select.tree-search { background: #0F172A; color: #F1F5F9; border-color: rgba(148, 163, 184, 0.28); }
+    body.theme-dark .btn-light { background: rgba(20, 184, 166, 0.15); color: #5EEAD4; border-color: rgba(20, 184, 166, 0.32); }
+    body.theme-dark .btn-light:hover { background: rgba(20, 184, 166, 0.25); color: #F8FAFC; }
+    body.theme-dark .pipe-step.active { background: var(--warn-bg); }
+    body.theme-dark .todo-item.p1 { background: var(--err-bg); }
+    body.theme-dark .todo-item.p2 { background: var(--warn-bg); }
+    body.theme-dark .todo-item.p1 .todo-prio { background: rgba(239, 68, 68, 0.25); color: #FCA5A5; }
+    body.theme-dark .todo-item.p2 .todo-prio { background: rgba(245, 158, 11, 0.25); color: #FDE68A; }
+    body.theme-dark .scen-btn.active,
+    body.theme-dark .tree-item.active { background: var(--teal); color: #042F2E; border-color: var(--teal); font-weight: 700; }
+    body.theme-dark .bento-id,
+    body.theme-dark .stat-chip,
+    body.theme-dark .step-circle { background: #1E293B; color: #F8FAFC; border: 1px solid var(--border); }
+    body.theme-dark svg rect[fill="#FFFFFF"],
+    body.theme-dark svg rect[fill="#F8FAFC"],
+    body.theme-dark svg rect[fill="#F3F7F5"],
+    body.theme-dark svg rect[fill="#FBFAF5"] { fill: #161F30 !important; stroke: #334155 !important; }
+    body.theme-dark svg rect[fill="#E7F0ED"] { fill: rgba(20, 184, 166, 0.16) !important; }
+    body.theme-dark svg text[fill="#0B1C2C"],
+    body.theme-dark svg text[fill="#3B4958"] { fill: #E2E8F0 !important; }
+    body.theme-dark [style*="background:var(--card-inner)"] { background: #1A2333 !important; }
+    body.theme-dark [style*="background:#FFF7ED"] { background: rgba(245, 158, 11, 0.14) !important; border-color: rgba(245, 158, 11, 0.35) !important; }
+    .sticky-chrome { position: sticky; top: 0; z-index: 40; }
+    @keyframes appleFade {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulseDot {
+      0%, 100% { box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25); }
+      50% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.08); }
+    }
+
+    /* Top Header */
+    .topbar {
+      background: linear-gradient(125deg, #0B1C2C 0%, #16334D 100%);
+      color: #fff;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      box-shadow: 0 3px 14px rgba(11, 28, 44, 0.2);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-icon {
+      width: 36px; height: 36px; border-radius: 9px;
+      background: linear-gradient(135deg, var(--teal), #2F6F65);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 15px; color: #fff;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    }
+    .brand-title { font-size: 16px; font-weight: 700; letter-spacing: 0.2px; }
+    .brand-sub { font-size: 11.5px; color: #9FB5C9; }
+    .controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+    select, button { font-family: inherit; font-size: 12.5px; border-radius: 8px; border: 1px solid transparent; cursor: pointer; transition: all 0.15s ease; }
+    .proj-select {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.22);
+      padding: 7px 12px;
+      font-weight: 600;
+      min-width: 215px;
+    }
+    .proj-select option { color: var(--navy); background: #fff; }
+    .btn { padding: 7px 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
+    .btn-teal { background: var(--teal); color: #fff; }
+    .btn-teal:hover { background: var(--teal-dark); }
+    .btn-glass { background: rgba(255, 255, 255, 0.1); color: #E2ECE9; border-color: rgba(255, 255, 255, 0.18); }
+    .btn-glass:hover { background: rgba(255, 255, 255, 0.18); }
+    .btn-light { background: var(--teal-bg); color: var(--navy); border-color: #C5DBD5; }
+    .btn-light:hover { background: #D4E5E0; }
+    .btn-xs { padding: 4px 9px; font-size: 11.5px; border-radius: 6px; }
+
+    /* Nav Tabs - Apple Frosted Segmented Bar */
+    .navtabs {
+      background: rgba(255, 255, 255, 0.72);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 24px;
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      background: transparent; color: var(--muted);
+      padding: 7px 14px; border-radius: 999px; border: 1px solid transparent;
+      font-weight: 600; font-size: 13px; white-space: nowrap;
+    }
+    .tab-btn:hover { color: var(--navy); background: rgba(15, 23, 42, 0.04); }
+    .tab-btn.active {
+      color: var(--navy);
+      background: var(--card-inner);
+      border-color: rgba(15, 23, 42, 0.08);
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+    }
+
+    /* Blog-style Sticky TOC + Single-Focus Canvas */
+    .blog-layout {
+      display: grid;
+      grid-template-columns: 196px minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+    @media (max-width: 960px) { .blog-layout { grid-template-columns: 1fr; } }
+    .blog-toc {
+      position: sticky;
+      top: 124px;
+      background: var(--card);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .toc-title {
+      font-size: 11px; font-weight: 800; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.6px;
+      padding: 2px 8px 6px;
+    }
+    .toc-item {
+      text-align: left;
+      background: transparent;
+      color: var(--ink);
+      padding: 8px 10px;
+      border-radius: 10px;
+      font-size: 12.5px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border: 1px solid transparent;
+    }
+    .toc-item:hover { background: rgba(15, 23, 42, 0.04); }
+    .toc-item.active {
+      background: var(--blue-bg);
+      color: var(--apple-blue);
+      border-color: rgba(0, 113, 227, 0.18);
+    }
+    .blog-sec { display: none; animation: appleFade 0.22s ease; }
+    .blog-sec.active { display: block; }
+    .blog-main.show-all .blog-sec { display: block; }
+    .seg-bar {
+      display: inline-flex; gap: 4px; padding: 4px;
+      background: rgba(15, 23, 42, 0.05); border-radius: 12px; margin-bottom: 14px; flex-wrap: wrap;
+    }
+    .seg-btn {
+      background: transparent; color: var(--muted); padding: 6px 13px; border-radius: 9px;
+      font-size: 12.5px; font-weight: 600; border: 1px solid transparent;
+    }
+    .seg-btn.active {
+      background: var(--card-inner); color: var(--navy); box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+    }
+    .skill-sec { display: none; animation: appleFade 0.22s ease; }
+    .skill-sec.active { display: block; }
+    .skills-wrap.show-all .skill-sec { display: block; }
+
+    .container { width: 100%; max-width: 100%; margin: 0; padding: 14px 24px 28px; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; animation: appleFade 0.22s ease; }
+
+    /* Hero Metrics */
+    .hero-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+    @media (max-width: 1100px) { .hero-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 640px) { .hero-grid { grid-template-columns: 1fr; } }
+
+    .hero-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 15px 16px;
+      box-shadow: var(--shadow);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-card::before {
+      content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+      background: var(--teal);
+    }
+    .hero-card.navy::before { background: #0F172A; }
+    .hero-card.blue::before { background: var(--blue); }
+    .hero-card.ok::before { background: var(--ok); }
+    .hero-label { font-size: 11.5px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+    .hero-val { font-size: 20px; font-weight: 800; color: var(--navy); margin: 4px 0 3px; line-height: 1.2; }
+    .hero-sub { font-size: 12px; color: var(--muted); }
+
+    /* SVG Ring Gauge */
+    .ring-wrap { position: relative; width: 64px; height: 64px; flex-shrink: 0; }
+    .ring-text {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 13px; color: var(--navy);
+    }
+
+    /* AI Fleet Dots */
+    .fleet-pills { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+    .fleet-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 600;
+      background: var(--tint); border: 1px solid var(--border); color: var(--navy);
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+    .dot-ok { background: #22C55E; animation: pulseDot 2.2s infinite; }
+    .dot-warn { background: #F59E0B; box-shadow: 0 0 0 2px #FEF3C7; }
+
+    /* Card Panels */
+    .card {
+      background: var(--card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 12px;
+      overflow: hidden;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+    .card:hover { box-shadow: var(--shadow-hover); }
+    .card-head {
+      background: var(--tint);
+      border-bottom: 1px solid var(--border);
+      padding: 11px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .card-title { font-weight: 700; color: var(--navy); font-size: 14px; display: flex; align-items: center; gap: 8px; }
+    .card-body { padding: 16px; }
+    .card.collapsed > .card-body { display: none; }
+    .card.collapsed > .card-head { border-bottom-color: transparent; }
+    .card-collapse-btn {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      margin-left: 6px;
+      flex-shrink: 0;
+    }
+    .card-collapse-btn:hover { color: var(--navy); background: var(--card-inner); }
+
+    /* Stage Pipeline */
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      position: relative;
+    }
+    @media (max-width: 1020px) { .pipeline { grid-template-columns: 1fr; } }
+    .pipe-step {
+      background: var(--tint);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 13px;
+      position: relative;
+    }
+    .pipe-step.done { border-top: 3px solid var(--ok); background: var(--ok-bg); }
+    .pipe-step.active { border-top: 3px solid var(--warn); background: #FFFBF2; box-shadow: 0 3px 12px rgba(180, 83, 9, 0.1); }
+    .pipe-step.locked { border-top: 3px solid var(--navy); background: var(--tint); }
+    .pipe-step.pending { border-top: 3px solid #94A3B8; }
+    .pipe-tag { font-size: 11px; font-weight: 700; margin-bottom: 4px; display: inline-block; }
+    .pipe-name { font-weight: 700; font-size: 13px; color: var(--navy); margin-bottom: 4px; }
+    .pipe-desc { font-size: 12px; color: var(--muted); }
+
+    /* Two-column Main Split */
+    .split-main {
+      display: grid;
+      grid-template-columns: 1.08fr 0.92fr;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    @media (max-width: 1040px) { .split-main { grid-template-columns: 1fr; } }
+
+    /* Kanban Todo Cards */
+    .todo-item {
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--blue);
+      border-radius: 8px;
+      padding: 11px 13px;
+      margin-bottom: 10px;
+      background: var(--card-inner);
+    }
+    .todo-item.p1 { border-left-color: #DC2626; background: #FFFBFB; }
+    .todo-item.p2 { border-left-color: #D97706; background: #FFFCF7; }
+    .todo-prio {
+      display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 7px;
+      border-radius: 5px; margin-bottom: 4px;
+    }
+    .todo-item.p1 .todo-prio { background: #FEE2E2; color: #B91C1C; }
+    .todo-item.p2 .todo-prio { background: #FEF3C7; color: #B45309; }
+    .todo-item:not(.p1):not(.p2) .todo-prio { background: var(--blue-bg); color: var(--blue); }
+    .todo-title { font-weight: 700; color: var(--navy); font-size: 13.5px; }
+    .todo-detail { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    /* Module Bar Chart */
+    .bar-row {
+      display: grid;
+      grid-template-columns: 165px 1fr 78px;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 6px;
+      border-radius: 7px;
+      cursor: pointer;
+    }
+    .bar-row:hover { background: var(--tint); }
+    .bar-label { font-size: 12.5px; font-weight: 600; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bar-track { background: #E9EFED; height: 11px; border-radius: 999px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 999px; transition: width 0.4s ease; }
+    .bar-num { font-size: 11.5px; color: var(--muted); text-align: right; font-weight: 600; }
+
+    /* 6-Point Check Cards */
+    .check-item {
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 10px 13px;
+      margin-bottom: 9px;
+      background: var(--card-inner);
+    }
+    .check-top {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      cursor: pointer;
+    }
+    .check-name { font-weight: 700; color: var(--navy); font-size: 13px; }
+    .check-cat { font-size: 11px; color: var(--muted); }
+    .check-details {
+      margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border);
+      font-size: 12px; color: var(--ink); display: none;
+    }
+    .check-item.open .check-details { display: block; }
+
+    /* Badges */
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+    .badge-pass { background: var(--ok-bg); color: var(--ok); }
+    .badge-warn { background: var(--warn-bg); color: var(--warn); }
+    .badge-fail { background: var(--err-bg); color: var(--err); }
+    .badge-info { background: var(--teal-bg); color: var(--teal-dark); }
+
+    /* Redline & Decision Bento */
+    .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .stat-chip {
+      background: #0F172A; color: #fff;
+      padding: 6px 12px; border-radius: 8px; font-size: 12px;
+    }
+    .stat-chip span { color: #93C5FD; font-weight: 700; margin-right: 6px; }
+    .ban-chip {
+      background: var(--err-bg); color: var(--err); border: 1px solid #FECACA;
+      padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600;
+    }
+
+    .bento-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 12px;
+    }
+    .bento-card {
+      background: var(--tint);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: transform 0.12s ease, border-color 0.12s ease;
+    }
+    .bento-card:hover { transform: translateY(-2px); border-color: var(--teal); background: var(--card-inner); }
+    .bento-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+    .bento-id { background: #0F172A; color: #fff; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 5px; }
+    .bento-date { font-size: 11px; color: var(--muted); }
+    .bento-title { font-weight: 700; font-size: 13px; color: var(--navy); margin-bottom: 4px; }
+    .bento-desc {
+      font-size: 12px; color: var(--muted);
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+
+    /* Visual Architecture Diagram (Tab 2) */
+    .arch-flow {
+      display: grid;
+      grid-template-columns: 1fr auto 1.2fr auto 1.2fr auto 1.2fr;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    @media (max-width: 1020px) {
+      .arch-flow { grid-template-columns: 1fr; }
+      .arch-arrow { transform: rotate(90deg); text-align: center; }
+    }
+    .arch-box {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      background: var(--tint);
+      text-align: center;
+    }
+    .arch-box.primary { background: #0F172A; color: #fff; border-color: #0F172A; }
+    .arch-box.bus { background: var(--teal-bg); border-color: var(--teal); }
+    .arch-arrow { font-size: 18px; font-weight: 800; color: var(--teal-dark); }
+
+    .scenario-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .scen-btn {
+      background: var(--tint); border: 1px solid var(--border); color: var(--navy);
+      padding: 7px 14px; font-weight: 600;
+    }
+    .scen-btn.active { background: #0F172A; color: #fff; border-color: var(--navy); }
+    .scen-panel {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+    }
+    .step-card {
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 13px;
+      background: var(--card-inner);
+      display: flex; flex-direction: column; justify-content: space-between; gap: 8px;
+    }
+    .setup-banner {
+      background: var(--teal-bg);
+      border: 1px solid #BBD4CC;
+      border-left: 5px solid var(--teal);
+      border-radius: var(--radius);
+      padding: 11px 16px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .setup-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    @media (max-width: 980px) { .setup-grid { grid-template-columns: 1fr; } }
+    .setup-card {
+      background: var(--card-inner);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .setup-head {
+      background: var(--tint);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .step-circle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #0F172A;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      margin-right: 6px;
+      flex-shrink: 0;
+    }
+    .setup-body { padding: 14px 16px; flex: 1; }
+    .setup-foot {
+      padding: 10px 16px 14px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      border-top: 1px dashed var(--border);
+      background: var(--card-inner);
+    }
+    .cmd-box {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px; background: #0F172A; color: #E2E8F0;
+      padding: 8px 10px; border-radius: 6px; word-break: break-word;
+    }
+
+    /* Accordion Manual */
+    details.manual-sec {
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      margin-bottom: 8px;
+      background: var(--card-inner);
+      overflow: hidden;
+    }
+    details.manual-sec summary {
+      padding: 11px 16px;
+      font-weight: 700;
+      color: var(--navy);
+      background: var(--tint);
+      cursor: pointer;
+      list-style: none;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    details.manual-sec summary::after { content: "＋ 展开"; font-size: 12px; color: var(--teal-dark); }
+    details.manual-sec[open] summary::after { content: "－ 收起"; }
+    .manual-inner { padding: 14px 18px; border-top: 1px solid var(--border); }
+
+    /* Bus & Explorer & Skills */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 960px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    .explorer { display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
+    @media (max-width: 960px) { .explorer { grid-template-columns: 1fr; } }
+    .file-tree {
+      background: var(--card-inner); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 12px; max-height: 75vh; overflow-y: auto; box-shadow: var(--shadow);
+    }
+    .tree-search { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px; font-size: 12.5px; }
+    .tree-group-title { font-size: 12px; font-weight: 700; color: var(--teal-dark); background: var(--teal-bg); padding: 5px 8px; border-radius: 5px; margin: 10px 0 6px; }
+    .tree-item { display: block; width: 100%; text-align: left; background: transparent; padding: 6px 8px; border-radius: 5px; color: var(--ink); font-size: 12px; margin-bottom: 2px; word-break: break-all; }
+    .tree-item:hover { background: var(--tint); }
+    .tree-item.active { background: #0F172A; color: #fff; }
+    .tree-meta { display: block; font-size: 10.5px; opacity: 0.72; }
+
+    .skill-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
+    .skill-card {
+      border: 1px solid var(--border); border-radius: 9px; padding: 13px 15px;
+      background: var(--card-inner); cursor: pointer; transition: all 0.15s ease;
+      display: flex; flex-direction: column; justify-content: space-between; gap: 8px;
+    }
+    .skill-card:hover { border-color: var(--teal); transform: translateY(-2px); box-shadow: var(--shadow); }
+    .role-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-bottom: 12px; }
+    .role-card { background: var(--card-inner); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
+
+    /* Slide-over Drawer */
+    .drawer-backdrop {
+      position: fixed; inset: 0; background: rgba(11, 28, 44, 0.45);
+      z-index: 80; display: none; justify-content: flex-end;
+    }
+    .drawer-backdrop.open { display: flex; }
+    .drawer {
+      width: min(760px, 94vw);
+      height: 100%;
+      background: var(--card-inner);
+      display: flex;
+      flex-direction: column;
+      box-shadow: -6px 0 28px rgba(0, 0, 0, 0.2);
+    }
+    .drawer-head {
+      background: #0F172A; color: #fff; padding: 14px 20px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .drawer-body { padding: 20px 24px; overflow-y: auto; flex: 1; }
+
+    /* Markdown inside drawer & viewers */
+    .md h1 { font-size: 18px; color: var(--navy); border-bottom: 2px solid var(--teal-bg); padding-bottom: 6px; }
+    .md h2 { font-size: 15.5px; color: var(--navy); margin-top: 16px; border-left: 3px solid var(--teal); padding-left: 8px; }
+    .md h3 { font-size: 14px; color: var(--navy-mid); margin-top: 12px; }
+    .md blockquote { margin: 10px 0; padding: 8px 14px; background: var(--teal-bg); border-left: 4px solid var(--teal); border-radius: 0 6px 6px 0; color: var(--navy); }
+    .md code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; background: var(--tint); padding: 1px 5px; border-radius: 4px; color: var(--teal-dark); }
+    .md pre { background: #0F172A; color: #E2E8F0; padding: 12px 14px; border-radius: 8px; overflow-x: auto; font-size: 12px; }
+    .md pre code { background: transparent; color: inherit; padding: 0; }
+    .md table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12.5px; }
+    .md th, .md td { border: 1px solid var(--border); padding: 7px 9px; text-align: left; }
+    .md th { background: var(--tint); color: var(--navy); }
+
+    .toast {
+      position: fixed; bottom: 22px; right: 24px; background: #0F172A; color: #fff;
+      padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.22); opacity: 0; transform: translateY(10px);
+      transition: all 0.2s ease; pointer-events: none; z-index: 99;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    body.theme-dark .drawer-head,
+    body.theme-dark .drawer-foot,
+    body.theme-dark .card-head,
+    body.theme-dark .setup-head,
+    body.theme-dark .setup-foot,
+    body.theme-dark .accordion-head { background: rgba(15, 23, 42, 0.85); color: var(--navy); border-color: var(--border); }
+    body.theme-dark .md th { background: rgba(30, 41, 59, 0.85); color: var(--navy); }
+    body.theme-dark .md td,
+    body.theme-dark .md th { border-color: var(--border); }
+    body.theme-dark .chip { background: rgba(30, 41, 59, 0.72); color: var(--ink); border-color: var(--border); }
+    body.theme-dark .badge-info { background: rgba(56, 189, 248, 0.18); color: #7DD3FC; }
+    body.theme-dark .badge-pass { background: rgba(34, 197, 94, 0.18); color: #86EFAC; }
+    body.theme-dark .badge-warn { background: rgba(245, 158, 11, 0.18); color: #FCD34D; }
+    body.theme-dark .badge-fail { background: rgba(239, 68, 68, 0.18); color: #FCA5A5; }
+    body.theme-dark .bar-track { background: rgba(148, 163, 184, 0.18); }
+    body.theme-dark .fleet-pill { background: rgba(30, 41, 59, 0.75); color: var(--ink); border-color: var(--border); }
+    .dispatch-tools {display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; color:var(--muted)}
+    .dispatch-tools input {background:var(--tint); color:var(--ink); border:1px solid var(--border); border-radius:6px; padding:5px 8px}
+    .checkpoint-title {font-size:15px; margin:16px 0 6px}
+    #checkpointList {max-height:20rem; overflow:auto; color:var(--muted)}
+    .checkpoint-entry {border-left:3px solid var(--teal); padding:4px 12px; margin:6px 0 10px; background:var(--teal-bg); overflow-wrap:anywhere}
+    .checkpoint-entry strong {color:var(--ink)}
+    .dispatch-details {margin-top:12px} .dispatch-details summary {cursor:pointer; font-weight:600}
+    #dispatchLive {white-space:pre-wrap; overflow:auto; max-height:20em; overflow-wrap:anywhere}
+  </style>
+</head>
+<body>
+
+  <div class="sticky-chrome">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon">RH</div>
+      <div>
+        <div class="brand-title">科研 AI 军团 · 全局多课题总控大屏</div>
+        <div class="brand-sub" id="topMeta">连接中...</div>
+      </div>
+    </div>
+    <div class="controls">
+      <select id="projectSelect" class="proj-select" title="切换当前监控课题"></select>
+      <button class="btn btn-teal" onclick="runAllChecks(true)">🩺 运行六维体检</button>
+      <button class="btn btn-glass" onclick="runDryRunDrawer()">🔍 会诊负载预览</button>
+      <button class="btn btn-glass" onclick="refreshAll()">🔄 刷新</button>
+      <button id="themeToggleBtn" class="btn btn-glass" onclick="toggleTheme()" title="切换深色极光玻璃 / 浅色磨砂玻璃">🌙 深色极光</button>
+      <button id="autoRefreshBtn" class="btn btn-glass" onclick="toggleAutoRefresh()" title="前台可见且未编辑输入框时每 15 秒自动拉取硬盘最新状态">⏱️ 自动刷新：开</button>
+    </div>
+  </header>
+
+  <nav class="navtabs">
+    <button class="tab-btn active" data-tab="cockpit" onclick="switchTab('cockpit')">🎯 总控驾驶舱</button>
+    <button class="tab-btn" data-tab="bus" onclick="switchTab('bus')">🔬 实验与会诊流</button>
+    <button class="tab-btn" data-tab="exptree" onclick="switchTab('exptree')">🌳 实验树与图库</button>
+    <button class="tab-btn" data-tab="explorer" onclick="switchTab('explorer')">📂 课题资产</button>
+    <button class="tab-btn" data-tab="skills" onclick="switchTab('skills')">🤖 模型与应急</button>
+    <button class="tab-btn" data-tab="manual" style="margin-left:auto;" onclick="switchTab('manual')">📚 手册与快捷键</button>
+  </nav>
+  </div>
+
+  <main class="container">
+    <!-- TAB 1: VISUAL COCKPIT -->
+    <section id="tab-cockpit" class="tab-pane active">
+      <div class="blog-layout">
+        <aside class="blog-toc">
+          <div class="toc-title">驾驶舱章节导航</div>
+          <button class="toc-item active" data-cpsec="overview" onclick="showCockpitSec('overview')"><span>🎯 总控与待办雷达</span><span>→</span></button>
+          <button class="toc-item" data-cpsec="actions" onclick="showCockpitSec('actions')"><span>⚡ 场景与参数台</span><span>→</span></button>
+          <button class="toc-item" data-cpsec="redlines" onclick="showCockpitSec('redlines')"><span>📌 红线与台账墙</span><span>→</span></button>
+          <div style="border-top:1px solid var(--border);margin:6px 0;"></div>
+          <button id="cpAllBtn" class="btn btn-light btn-xs" style="width:100%;justify-content:center;" onclick="toggleCockpitAll()">📑 展开全览模式</button>
+        </aside>
+        <div id="cockpitBlogMain" class="blog-main">
+          <div id="cpsec-overview" class="blog-sec active">
+<section class="card" id="jobMonitor">
+  <div class="card-head"><span class="card-title">实验工单与回执</span></div>
+  <div class="card-body">
+    <div class="dispatch-tools"><label>查找工单 <input id="dispatchFilter" type="search" placeholder="输入 job_id"></label><span id="workerState"></span></div>
+    <h3 class="checkpoint-title">正在执行的实验</h3>
+    <div id="experimentProgress">正在读取工单…</div>
+    <h3 class="checkpoint-title">Colab 检查点</h3>
+    <div id="checkpointList">正在读取 Mac 保存记录…</div>
+    <details class="dispatch-details" open><summary>工单状态与日志</summary><pre id="dispatchLive">读取队列中…</pre></details>
+  </div>
+</section>
+      <div class="setup-banner" id="setupBanner"></div>
+      <div id="visualTelemetryStrip" style="display:none;"></div>
+      <div class="hero-grid" id="heroGrid"></div>
+
+      <!-- Research Stage Pipeline -->
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🗺️ 课题阶段里程碑</span>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn btn-light btn-xs" onclick="openRawDrawer('state')">📄 沙盘原文</button>
+            <button class="btn btn-light btn-xs" onclick="openRawDrawer('contract')">🛡️ 契约原文</button>
+            <button class="btn btn-light btn-xs" onclick="openRawDrawer('claude')">🤖 Claude 守则</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="pipeline" id="pipelineView"></div>
+        </div>
+      </div>
+
+
+      <!-- Split: Left (Top Todos + Module Bar Chart) | Right (6-Point Live Check Center) -->
+      <div class="split-main">
+        <div>
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title">🔥 当前最高优待办（Top 3 攻坚任务）</span>
+              <span class="badge badge-info" id="todoCountBadge">0 项</span>
+            </div>
+            <div class="card-body" id="todosView"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title">📊 实验与验证资产分布（点击跳转浏览）</span>
+              <span style="font-size:11.5px;color:var(--muted);">A～E 五大科研模块</span>
+            </div>
+            <div class="card-body" id="moduleBarsView"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title">🩺 六维自动化健康与学术门禁雷达</span>
+              <button class="btn btn-light btn-xs" onclick="runAllChecks(true)">🔄 重新扫描</button>
+            </div>
+            <div class="card-body" id="checksRadarView">加载体检数据中...</div>
+          </div>
+        </div>
+      </div>
+          </div>
+          <div id="cpsec-actions" class="blog-sec">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">⚡ 七大高频科研场景快捷指令台（自动填入当前课题路径 · 含对应 Skill 召唤）</span>
+        </div>
+        <div class="card-body">
+          <div class="scenario-tabs">
+            <button class="scen-btn active" onclick="renderScenario(0, this)">① 日常推进与跑实验</button>
+            <button class="scen-btn" onclick="renderScenario(1, this)">② 门禁双盲会诊 (GPT + DS)</button>
+            <button class="scen-btn" onclick="renderScenario(2, this)">③ 论文精修与去防御定界</button>
+            <button class="scen-btn" onclick="renderScenario(3, this)">④ 每周组会可编辑 PPT</button>
+            <button class="scen-btn" onclick="renderScenario(4, this)">⑤ 初创课题立项 (Idea→MVP)</button>
+            <button class="scen-btn" onclick="renderScenario(5, this)">⑥ 文献精读与问答 (省 Claude 额度)</button>
+            <button class="scen-btn" onclick="renderScenario(6, this)">⑦ Colab 云端实验 + Drive 自动回传</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;padding:10px 12px;background:var(--card-inner);border:1px solid var(--border);border-radius:10px;margin-bottom:12px;font-size:12px;">
+            <div>
+              <div style="color:var(--muted);font-weight:700;margin-bottom:3px;">📜 脚本相对路径</div>
+              <input id="tplScript" class="tree-search" style="margin:0;padding:5px 8px;font-size:12px;" value="03_代码与脚本/run.py" oninput="refreshCmdTemplates()" />
+            </div>
+            <div>
+              <div style="color:var(--muted);font-weight:700;margin-bottom:3px;">⚙️ 传给脚本的参数</div>
+              <input id="tplArgs" class="tree-search" style="margin:0;padding:5px 8px;font-size:12px;" value="--out ./colab_out" oninput="refreshCmdTemplates()" />
+            </div>
+            <div>
+              <div style="color:var(--muted);font-weight:700;margin-bottom:3px;">📦 远程产物路径（需 /content/ 开头）</div>
+              <input id="tplResult" class="tree-search" style="margin:0;padding:5px 8px;font-size:12px;" value="/content/colab_out/result.json" oninput="refreshCmdTemplates()" />
+            </div>
+            <div>
+              <div style="color:var(--muted);font-weight:700;margin-bottom:3px;">📁 本地保存目录（交换区内）</div>
+              <input id="tplLocalDir" class="tree-search" style="margin:0;padding:5px 8px;font-size:12px;" value="02_实验与验证/colab_results" oninput="refreshCmdTemplates()" />
+            </div>
+            <div>
+              <div style="color:var(--muted);font-weight:700;margin-bottom:3px;">🎮 GPU / 会话名</div>
+              <div style="display:flex;gap:6px;">
+                <select id="tplGpu" class="tree-search" style="margin:0;padding:5px;font-size:12px;width:72px;" onchange="refreshCmdTemplates()">
+                  <option value="T4">T4</option>
+                  <option value="L4">L4</option>
+                  <option value="A100">A100</option>
+                  <option value="H100">H100</option>
+                </select>
+                <input id="tplSession" class="tree-search" style="margin:0;padding:5px 8px;font-size:12px;" value="run_gpu" oninput="refreshCmdTemplates()" />
+              </div>
+            </div>
+          </div>
+          <div class="scen-panel" id="scenarioPanel"></div>
+          <div style="margin-top:10px;padding:8px 12px;border-radius:8px;background:var(--teal-bg);font-size:12px;color:var(--ink);line-height:1.6;">
+            <strong>📖 通用参数速解：</strong>
+            <code>-s &lt;会话&gt;</code> 指定远程 Colab 实例名（方便下载或停止） ·
+            <code>--gpu T4|L4|A100</code> 租用 GPU 型号 ·
+            <code>--timeout 0</code> 不限时等待（防长跑断连） ·
+            <code>--keep</code> 跑完保留实例以便 <code>colab download</code> 拉取结果（拉完记得 <code>colab stop -s &lt;会话&gt;</code>） ·
+            <code>--effort off|low|medium|high|xhigh</code> 调推理深度 ·
+            <code>--eli5</code> 附带通俗大白话解释。
+          </div>
+          <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:#FFF7ED;border:1px solid #FED7AA;font-size:12px;color:var(--ink);line-height:1.65;">
+            <strong>🧯 Colab CLI 报错自救 3 步（遇到 <code>File or directory not found</code> 时按顺序查）：</strong>
+            <br/>① 查会话还在不在：<code style="cursor:pointer;" onclick="copyText('colab sessions', '已复制 colab sessions')">colab sessions</code>（点此复制）
+            <br/>② 看远端真实目录（<strong>注意必须写 <code>/content/</code> 开头绝对路径</strong>）：<code style="cursor:pointer;" onclick="copyText('colab ls -s ' + getTplVars().sessionName + ' /content/colab_out', '已复制 colab ls 查看命令')">colab ls -s &lt;会话名&gt; /content/colab_out</code>（点此复制）
+            <br/>③ 若路径仍对不上，查看本地留存日志确认脚本实际输出路径：<code style="cursor:pointer;" onclick="copyText('ls -t run_*.log | head -n 1 | xargs tail -n 25', '已复制查看最新日志命令')">ls -t run_*.log | head -n 1 | xargs tail -n 25</code>（点此复制）
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">⭐ 每日必用核心指令（Ghostty / Pebrel 通用 · 自动关联当前选中课题）</span>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn btn-light btn-xs" onclick="switchTab('ghostty')">👻 Ghostty 全部操作指令 →</button>
+            <button class="btn btn-light btn-xs" onclick="switchTab('pebrel')">⌨️ Pebrel 命令大全 →</button>
+          </div>
+        </div>
+        <div class="card-body" id="essentialCmdsBar"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">📘 科研工作流完整操作手册（OPERATION_MANUAL.md · 点击章节展开/收起）</span>
+          <button class="btn btn-light btn-xs" onclick="copyText('open -e \"$RESEARCH_HUB_ROOT/00_全局中枢_Hub/OPERATION_MANUAL.md\"', '已复制打开操作手册命令')">📝 打开手册原文</button>
+        </div>
+        <div class="card-body" id="manualAccordion"></div>
+      </div>
+
+          </div>
+          <div id="cpsec-redlines" class="blog-sec">
+      <!-- Redline Chips + Decision Bento Wall -->
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">📌 科研红线指标 & 已冻结决策台账（点击卡片查看详情）</span>
+          <button class="btn btn-light btn-xs" onclick="openRawDrawer('ledger')">📑 查看完整台账表</button>
+        </div>
+        <div class="card-body">
+          <div class="chip-row" id="redlineChips"></div>
+          <div class="chip-row" id="bannedPills"></div>
+          <div class="bento-grid" id="decisionBento"></div>
+        </div>
+      </div>
+
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: FIRST-TIME SETUP WIZARD -->
+        <section id="tab-manual" class="tab-pane">
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-body" style="padding:10px 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <span style="font-weight:700;color:var(--navy);font-size:13px;margin-right:6px;">📚 参考视图：</span>
+          <button class="scen-btn active" data-msub="workflow" onclick="showManualSub('workflow', this)">📘 工作流图谱 &amp; 手册</button>
+          <button class="scen-btn" data-msub="org" onclick="showManualSub('org', this)">🏛️ 组织架构 &amp; 全景</button>
+          <button class="scen-btn" data-msub="setup" onclick="showManualSub('setup', this)">🚀 初次使用配置</button>
+          <button class="scen-btn" data-msub="pebrel" onclick="showManualSub('pebrel', this)">⌨️ Pebrel 命令</button>
+          <button class="scen-btn" data-msub="ghostty" onclick="showManualSub('ghostty', this)">👻 Ghostty 指令</button>
+        </div>
+      </div>
+      <div id="msub-setup" class="msub-pane" style="display:none;">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🚀 初次使用 4 步配置向导（约 2 分钟完成一次，后续开新课题无需重复配）</span>
+          <button class="btn btn-teal btn-xs" onclick="refreshAll()">🔄 填完密钥后点此刷新检测</button>
+        </div>
+        <div class="card-body" style="padding:12px 16px;font-size:13px;color:var(--muted);">
+          本科研流采用<strong>「虚拟机 Claude Desktop（唯一主控）+ 宿主机 Mac（Pebrel 终端手动点火 & Antigravity Gemini）」</strong>双端隔离架构。首次开跑只需按顺序完成下方 4 步即可：
+        </div>
+      </div>
+      <div class="setup-grid" id="setupWizardGrid"></div>
+    </div>
+      <div id="msub-workflow" class="msub-pane">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🕸️ 「一脑一手三外围」物理隔离协作架构图</span>
+          <span class="badge badge-pass">0 后台轮询 · 0 复制粘贴</span>
+        </div>
+        <div class="card-body">
+          <div class="arch-flow">
+            <div class="arch-box primary">
+              <div style="font-size:11px;opacity:0.8;">唯一人类司令</div>
+              <div style="font-weight:800;font-size:15px;">你 (PI)</div>
+              <div style="font-size:11.5px;opacity:0.85;margin-top:4px;">只做拍板决策与手动回车点火</div>
+            </div>
+            <div class="arch-arrow">⇄</div>
+            <div class="arch-box">
+              <div style="font-size:11px;color:var(--teal-dark);font-weight:700;">VM 唯一主控与主笔</div>
+              <div style="font-weight:800;font-size:14.5px;color:var(--navy);">Claude Desktop</div>
+              <div style="font-size:11.5px;color:var(--muted);margin-top:4px;">Sonnet 5.5 日常 / Opus 5.5 攻坚<br/>只经本地 filesystem MCP 读写</div>
+            </div>
+            <div class="arch-arrow">⇄</div>
+            <div class="arch-box bus">
+              <div style="font-size:11px;color:var(--teal-dark);font-weight:700;">VirtioFS 零网络共享总线</div>
+              <div style="font-weight:800;font-size:14.5px;color:var(--navy);">_control/ & _bus/</div>
+              <div style="font-size:11.5px;color:var(--muted);margin-top:4px;">课题舱物理隔离 (P01 / P02...)<br/>1500 字摘要单向交接</div>
+            </div>
+            <div class="arch-arrow">⇄</div>
+            <div class="arch-box">
+              <div style="font-size:11px;color:var(--teal-dark);font-weight:700;">宿主机 Mac 动力舱</div>
+              <div style="font-weight:800;font-size:14.5px;color:var(--navy);">Pebrel + Antigravity</div>
+              <div style="font-size:11.5px;color:var(--muted);margin-top:4px;">DeepSeek V4.1 Flash 红队 · GPT 顾问<br/>GLM 5.3 周报 · Gemini 4 读大文献</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🧭 会话切换 · 模型升级 · 分支与归档实战手册（已写入各课题 CLAUDE.md）</span>
+          <span class="badge badge-pass">防串台 · 省额度 · 防跑偏</span>
+        </div>
+        <div class="card-body">
+          <div class="bento-grid">
+            <div class="bento-card" style="cursor:default;">
+              <div style="font-weight:700;color:var(--navy);font-size:13.5px;margin-bottom:6px;">🤖 1. 模型调用方式（Agent 架构实况）</div>
+              <div style="font-size:12px;color:var(--ink);line-height:1.6;">
+                • <strong>Claude Desktop (VM)</strong>：官方桌面端 + 本地 Python MCP <code>filesystem</code>（唯一写权限）。<br/>
+                • <strong>GPT 顾问 (<code>advisor</code>)</strong>：<strong>非</strong>启动 Codex CLI Agent，而是 <code>consult.py</code> 读 <code>cc-switch</code> 密钥直接单次 HTTP 调用 <code>responses</code> API（只读提意见）。<br/>
+                • <strong>DeepSeek / GLM</strong>：直接 HTTP 单次调用（目前非流式，等待返回后写回 <code>_bus/reply.md</code> 并打印耗时与 Token）。
+              </div>
+            </div>
+            <div class="bento-card" style="cursor:default;">
+              <div style="font-weight:700;color:var(--navy);font-size:13.5px;margin-bottom:6px;">⬆️ 2. 什么时候开新会话（New Chat）？</div>
+              <div style="font-size:12px;color:var(--ink);line-height:1.6;">
+                • <strong>切换课题</strong>（P01 ↔ P02 必进各自 Project 重开）；<br/>
+                • <strong>切换模型档位</strong>（Sonnet ↔ Opus 必开新会话防上下文污染）；<br/>
+                • <strong>阶段闭环或对话过长（&gt;20 轮）</strong>：先让 Claude 把结论写入 <code>_control/01_PROJECT_STATE.md</code> 与 <code>02_DECISION_LEDGER.md</code>，再开新会话（开局自动读 3 文件，零丢失最省额度）。
+              </div>
+            </div>
+            <div class="bento-card" style="cursor:default;">
+              <div style="font-weight:700;color:var(--navy);font-size:13.5px;margin-bottom:6px;">🚨 3. 模型升级主动提醒机制（CLAUDE.md 第 5 节）</div>
+              <div style="font-size:12px;color:var(--ink);line-height:1.6;">
+                已在所有课题 <code>CLAUDE.md</code> 写入硬约束：平时用 <strong>Sonnet</strong> 跑日常，一旦遇到<strong>立项/防偏航总审、反直觉数据归因、外部会诊冲突仲裁、核心段落定稿</strong>，Claude 必须先停下并提示：<br/>
+                <code>⚠️ 建议升级模型：先写完 State 后新开会话切 Opus 继续。</code>
+              </div>
+            </div>
+            <div class="bento-card" style="cursor:default;">
+              <div style="font-weight:700;color:var(--navy);font-size:13.5px;margin-bottom:6px;">🌿 4. 分支对话与归档（Branch &amp; Archive）怎么用？</div>
+              <div style="font-size:12px;color:var(--ink);line-height:1.6;">
+                • <strong>Claude 分支试探</strong>：想试一个可能推翻主线的想法时，在原对话点“编辑消息/开新分支”；不采纳就丢弃分支不污染主线，采纳后再写入 <code>02_DECISION_LEDGER.md</code>。<br/>
+                • <strong>三级只读归档</strong>：每轮会诊自动存入 <code>_bus/archive/</code>；旧阶段/旧代码封存进 <code>冻结存档-*</code> 或 <code>99_历史归档_Archive/</code>（只读禁改）。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+    </div>
+    <!-- TAB 6: PEBREL COMMANDS CHEATSHEET -->
+    <div id="msub-pebrel" class="msub-pane" style="display:none;">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">⌨️ 宿主机 Pebrel 终端命令大全（已配置于 ~/.zshrc 与 pebrel.luau）</span>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input type="text" id="pebrelSearch" class="tree-search" style="width:240px;margin:0;" placeholder="搜索命令 / 用途 (如 consult / pview / glm)..." oninput="renderPebrelCommands()" />
+            <button class="btn btn-light btn-xs" onclick="copyText('source ~/.zshrc', '已复制 source ~/.zshrc')">🔄 复制刷新环境</button>
+            <button class="btn btn-teal btn-xs" onclick="copyText('open -e \"$HOME/Library/Application Support/Pebrel/pebrel.luau\"', '已复制打开 pebrel.luau 命令')">⚙️ 编辑 pebrel.luau</button>
+          </div>
+        </div>
+        <div class="card-body" style="padding:10px 16px;font-size:12.5px;color:var(--muted);">
+          命令中的 <code>--project</code> 会自动跟随右上角当前选中的课题；新开 Pebrel 标签页自动生效，已开窗口执行一次 <code>source ~/.zshrc</code> 即可。
+        </div>
+      </div>
+
+      <div id="pebrelCmdGrid" class="setup-grid"></div>
+
+      <div class="card" style="margin-top:16px;">
+        <div class="card-head">
+          <span class="card-title">🗂️ Pebrel 侧边栏预设 Profiles（config.profiles）</span>
+          <span style="font-size:12px;color:var(--muted);">可在 Pebrel 左侧栏直接新建对应标签页</span>
+        </div>
+        <div class="card-body" id="pebrelProfilesView"></div>
+      </div>
+    </div>
+
+    <!-- TAB 7: GHOSTTY DEDICATED COMMANDS & SHORTCUTS -->
+    <div id="msub-ghostty" class="msub-pane" style="display:none;">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">👻 Ghostty 专属操作指令大全（macOS 1.4.0 · 与 Pebrel 完全独立分页）</span>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input type="text" id="ghosttySearch" class="tree-search" style="width:240px;margin:0;" placeholder="搜索 Ghostty 快捷键 / +action / 命令..." oninput="renderGhosttyCommands()" />
+            <button class="btn btn-light btn-xs" onclick="copyText('ghostty +validate-config', '已复制配置校验命令')">✅ 复制 +validate-config</button>
+            <button class="btn btn-teal btn-xs" onclick="copyText('ghosttycfg', '已复制打开 Ghostty 配置命令')">⚙️ 编辑 ~/.config/ghostty/config</button>
+          </div>
+        </div>
+        <div class="card-body" style="padding:10px 16px;font-size:12.5px;color:var(--muted);">
+          已在本机 <code>~/.config/ghostty/config</code> 配置 <code>Nord</code> 主题、<code>Menlo 13.5</code>、<code>50MB</code> 滚动历史、选中即复制与 Option 映射为 Alt；在 <code>~/.zshrc</code> 已启用 Ghostty 新标签导航横幅。
+        </div>
+      </div>
+
+      <div id="ghosttyCmdGrid" class="setup-grid"></div>
+    </div>
+
+    <!-- TAB 8: ORG CHART, RESEARCH FLOW, MODULES & CONFIG PATHS -->
+    <div id="msub-org" class="msub-pane" style="display:none;">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🏛️ 多 AI 科研组织架构图（物理隔离 · 唯一主线写权限 · 分层分工）</span>
+          <span class="badge badge-pass">独立全景页 · 零耦合架构</span>
+        </div>
+        <div class="card-body" style="overflow-x:auto;">
+          <svg viewBox="0 0 1080 420" width="100%" style="width:100%;max-width:100%;display:block;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC',sans-serif;">
+            <defs>
+              <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#529286"/>
+              </marker>
+              <marker id="arr-warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#C46A2B"/>
+              </marker>
+            </defs>
+
+            <!-- Layer 1: PI -->
+            <rect x="400" y="14" width="280" height="62" rx="12" fill="#0B1C2C"/>
+            <text x="540" y="39" text-anchor="middle" fill="#FFFFFF" font-size="14" font-weight="800">人类 PI（唯一决策司令）</text>
+            <text x="540" y="59" text-anchor="middle" fill="#A5D8CF" font-size="11.5">拍板台账 · 手动触发会诊/实验 · 模型升降档</text>
+
+            <!-- Arrows from PI -->
+            <line x1="460" y1="76" x2="220" y2="120" stroke="#529286" stroke-width="2" marker-end="url(#arr)"/>
+            <line x1="620" y1="76" x2="830" y2="120" stroke="#529286" stroke-width="2" marker-end="url(#arr)"/>
+
+            <!-- Left Column: ClaudeShield VM -->
+            <rect x="24" y="114" width="380" height="288" rx="14" fill="#F3F7F5" stroke="#529286" stroke-width="1.5" stroke-dasharray="6 4"/>
+            <text x="42" y="138" fill="#0B1C2C" font-size="12.5" font-weight="800">🔒 ClaudeShield 隔离虚拟机（无宿主机密钥）</text>
+            <rect x="44" y="152" width="340" height="86" rx="10" fill="#FFFFFF" stroke="#0B1C2C" stroke-width="1.5"/>
+            <text x="214" y="176" text-anchor="middle" fill="#0B1C2C" font-size="13.5" font-weight="800">Claude Desktop（唯一主控 &amp; 唯一项目写者）</text>
+            <text x="214" y="196" text-anchor="middle" fill="#3B4958" font-size="11.5">Sonnet 5.5 日常推进 | Opus 5.5 架构仲裁 | Fable 5.2 精修</text>
+            <text x="214" y="216" text-anchor="middle" fill="#529286" font-size="11" font-weight="700">通过本地 Python MCP (mcp_filesystem_server.py) 挂载</text>
+            <rect x="44" y="256" width="340" height="62" rx="10" fill="#E7F0ED" stroke="#529286" stroke-width="1"/>
+            <text x="214" y="280" text-anchor="middle" fill="#0B1C2C" font-size="12" font-weight="700">硬性保护：冻结存档-20261117 / 冻结件 只读拦截</text>
+            <text x="214" y="300" text-anchor="middle" fill="#3B4958" font-size="11">CLAUDE.md 约束：主动提醒切 Opus · 不宣称红线</text>
+            <rect x="44" y="332" width="340" height="54" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+            <text x="214" y="355" text-anchor="middle" fill="#0B1C2C" font-size="12" font-weight="700">唯一可写范围：当前课题舱</text>
+            <text x="214" y="373" text-anchor="middle" fill="#64748B" font-size="11">_control/ · _bus/ask.md · 01_论文 · 02_实验 · 03_代码</text>
+
+            <!-- Center Column: VirtioFS Shared Bus -->
+            <rect x="430" y="138" width="220" height="248" rx="14" fill="#FFFFFF" stroke="#0072B2" stroke-width="1.8"/>
+            <text x="540" y="164" text-anchor="middle" fill="#0072B2" font-size="12.5" font-weight="800">VirtioFS 零网络共享总线</text>
+            <text x="540" y="182" text-anchor="middle" fill="#64748B" font-size="10.5">宿主机文件交换 ↔ VM Shared Files</text>
+            <rect x="446" y="196" width="188" height="46" rx="8" fill="#F8FAFC" stroke="#CBD5E1"/>
+            <text x="540" y="216" text-anchor="middle" fill="#0B1C2C" font-size="11.5" font-weight="700">00_全局中枢_Hub</text>
+            <text x="540" y="233" text-anchor="middle" fill="#64748B" font-size="10.5">models · 14 Skills · 脚本 · 大屏</text>
+            <rect x="446" y="252" width="188" height="62" rx="8" fill="#E7F0ED" stroke="#529286"/>
+            <text x="540" y="272" text-anchor="middle" fill="#0B1C2C" font-size="11.5" font-weight="700">01_在研课题_Projects</text>
+            <text x="540" y="290" text-anchor="middle" fill="#3B4958" font-size="10.5">P01 染色质插补 | P02 NC综述</text>
+            <text x="540" y="305" text-anchor="middle" fill="#529286" font-size="10">_control/ &amp; _bus/ 单向隔离</text>
+            <rect x="446" y="324" width="188" height="46" rx="8" fill="#F8FAFC" stroke="#CBD5E1"/>
+            <text x="540" y="344" text-anchor="middle" fill="#0B1C2C" font-size="11.5" font-weight="700">02_公共库 &amp; 99_归档</text>
+            <text x="540" y="361" text-anchor="middle" fill="#64748B" font-size="10.5">文献 PDF · 历史只读封存</text>
+
+            <!-- Bidirectional arrows between VM and Bus, Host and Bus -->
+            <line x1="404" y1="256" x2="430" y2="256" stroke="#529286" stroke-width="2" marker-end="url(#arr)" marker-start="url(#arr)"/>
+            <line x1="650" y1="256" x2="676" y2="256" stroke="#529286" stroke-width="2" marker-end="url(#arr)" marker-start="url(#arr)"/>
+
+            <!-- Right Column: Host Mac Powerhouse -->
+            <rect x="676" y="114" width="380" height="288" rx="14" fill="#F8FAFC" stroke="#0B1C2C" stroke-width="1.5"/>
+            <text x="694" y="138" fill="#0B1C2C" font-size="12.5" font-weight="800">⚡ 宿主机 Mac 动力舱（Ghostty / Pebrel / Antigravity）</text>
+
+            <rect x="694" y="152" width="344" height="58" rx="8" fill="#FFFFFF" stroke="#0072B2"/>
+            <text x="708" y="173" fill="#0072B2" font-size="12" font-weight="800">1. 只读外部专家接口（consult.py 实时流式）</text>
+            <text x="708" y="192" fill="#3B4958" font-size="11">DeepSeek (redteam) · GPT (cc-switch advisor) · GLM (s2api) → 只写 reply.md</text>
+
+            <rect x="694" y="218" width="344" height="56" rx="8" fill="#FFFFFF" stroke="#529286"/>
+            <text x="708" y="238" fill="#0B1C2C" font-size="12" font-weight="800">2. Track B 可编辑 PPT 引擎（ppt）</text>
+            <text x="708" y="257" fill="#3B4958" font-size="11">GLM-5.3 + academic-ppt-studio → 只写 04_组会与周报_Weekly/</text>
+
+            <rect x="694" y="282" width="344" height="54" rx="8" fill="#FBFAF5" stroke="#C46A2B"/>
+            <text x="708" y="302" fill="#C46A2B" font-size="12" font-weight="800">3. 受限子模块攻坚（codexbox）+ 0 消耗自通知</text>
+            <text x="708" y="321" fill="#3B4958" font-size="11">codexbox 锁死 03_代码/&lt;子目录&gt; · runnotify / watchdone 盯实验</text>
+
+            <rect x="694" y="344" width="344" height="46" rx="8" fill="#FFFFFF" stroke="#CBD5E1"/>
+            <text x="708" y="364" fill="#0B1C2C" font-size="12" font-weight="800">4. Antigravity 原生 Gemini 4（防封号文献馆长）</text>
+            <text x="708" y="381" fill="#64748B" font-size="11">百万上下文批量读 02_公共资料库 PDF · 维护大屏与中枢基建</text>
+          </svg>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🔄 科研双轨流可视化（Track A 科研主线 × Track B 汇报交付）</span>
+          <span class="badge badge-info">单向隔离 · 不可反向改主线</span>
+        </div>
+        <div class="card-body" id="orgFlowView"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🧩 系统核心模块全景（按职责解耦划分）</span>
+        </div>
+        <div class="card-body" id="orgModulesView"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🗂️ 全部配置文件与核心入口路径清单（点击一键复制路径或打开命令）</span>
+        </div>
+        <div class="card-body" id="orgConfigsView"></div>
+      </div>
+    </div>
+
+    </section>
+
+    <!-- TAB 3: BUS MONITOR -->
+    <section id="tab-bus" class="tab-pane">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🔬 跨端会诊流水线与历史轮次可视化</span>
+          <span class="badge badge-info">ask.md ➔ consult ➔ reply.md ➔ archive</span>
+        </div>
+        <div class="card-body" id="busFlowVisual"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">⚡ 宿主机 Pebrel 手动点火会诊命令</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-light btn-xs" onclick="copyCmd('consult redteam')">📋 复制 consult redteam</button>
+            <button class="btn btn-light btn-xs" onclick="copyCmd('consult advisor')">📋 复制 consult advisor</button>
+            <button class="btn btn-teal btn-xs" onclick="copyCmd('consult all')">📋 复制 consult all</button>
+          </div>
+        </div>
+        <div class="card-body" style="padding:10px 16px;font-size:12.5px;color:var(--muted);">
+          流程：Claude 写完 <code>_bus/ask.md</code> → 在宿主机 Pebrel 回车运行 <code>consult all</code> → 专家回执写入 <code>_bus/reply.md</code> → 复制口令让 Claude 过滤并输出 A/B 拍板选项。
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head"><span class="card-title">📤 _bus/ask.md（会诊请求单）</span></div>
+          <div class="card-body md" style="min-height:380px;max-height:calc(100vh - 340px);overflow-y:auto;" id="askView"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">📥 _bus/reply.md（外部专家回执）</span>
+            <button class="btn btn-light btn-xs" onclick="copyText('会诊回执已到，请读取 _bus/reply.md，对照 _control/02_DECISION_LEDGER.md 过滤越权或无效建议，向我汇报 A/B 拍板选项。', '已复制给 Claude 的收口口令')">📋 复制收口口令</button>
+          </div>
+          <div class="card-body md" style="min-height:380px;max-height:calc(100vh - 340px);overflow-y:auto;" id="replyView"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><span class="card-title">🗄️ _bus/archive/（历史会诊归档）</span></div>
+        <div class="card-body">
+          <div id="archivePills" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+          <div class="md" id="archiveViewer" style="margin-top:12px;color:var(--muted);">点击上方历史记录查看内容。</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: EXP TREE & GALLERY (3 Construction Modes: Rail Table / Chapter Swimlanes / 2D DAG Canvas) -->
+    <section id="tab-exptree" class="tab-pane">
+      <!-- Top View Switcher Toolbar -->
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-head" style="padding:10px 16px;background:var(--card);">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-weight:700;font-size:13.5px;color:var(--navy);margin-right:4px;">🌳 视图构造模式</span>
+            <div class="seg-bar" style="margin:0;">
+              <button id="treeModeBtn-rail" class="seg-btn active" onclick="switchExpTreeMode('rail')">🛤️ A. 地铁轨道表 (Git-Graph)</button>
+              <button id="treeModeBtn-swim" class="seg-btn" onclick="switchExpTreeMode('swim')">🏛️ B. 章节擂台泳道 (Stacked Bushes)</button>
+              <button id="treeModeBtn-dag" class="seg-btn" onclick="switchExpTreeMode('dag')">🕸️ C. 2D 拓扑画布 (DAG Flow)</button>
+              <button id="treeModeBtn-runs" class="seg-btn" onclick="switchExpTreeMode('runs')">⚡ 运行库</button>
+              <button id="treeModeBtn-arts" class="seg-btn" onclick="switchExpTreeMode('arts')">🖼️ 产物库</button>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="hint" id="expTreeCountHint" style="font-size:12px;color:var(--muted);">加载中...</span>
+            <input type="text" id="expTreeSearch" class="tree-search" style="margin:0;width:230px;padding:6px 10px;" placeholder="筛选编号 / 标题 / 指标 / 文件..." oninput="renderExpTreeMain()" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Workspace: Left Primary View (1fr) + Right Sticky Detail Inspector (410px) -->
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) 410px;gap:16px;align-items:start;">
+        <div class="card" style="margin-bottom:0;min-height:580px;">
+          <div class="card-body" id="expTreeLeftList" style="padding:0;"></div>
+        </div>
+
+        <div class="card" style="margin-bottom:0;position:sticky;top:110px;max-height:calc(100vh - 130px);display:flex;flex-direction:column;">
+          <div class="card-head" style="flex-direction:column;align-items:flex-start;gap:4px;">
+            <div style="font-weight:700;font-size:14px;color:var(--navy);line-height:1.35;" id="expInspectorTitle">🔍 节点详情检视器</div>
+            <div style="font-size:12px;color:var(--muted);" id="expInspectorMeta">点击左侧任意节点查看父子谱系、指标与图表</div>
+          </div>
+          <div class="card-body" id="expInspectorBody" style="overflow-y:auto;flex:1;padding:14px 16px;">
+            <div style="color:var(--muted);font-size:13px;">👈 点击左侧任意节点、章节实验或图表立即检视。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: EXPLORER -->
+    <section id="tab-explorer" class="tab-pane">
+      <div class="explorer">
+        <div class="file-tree">
+          <input type="text" id="fileFilter" class="tree-search" placeholder="筛选文件名或模块 (如 论文 / A_T3T4 / 周报)..." oninput="renderFileTree()" />
+          <div id="fileTreeList"></div>
+        </div>
+        <div class="card" style="margin-bottom:0;">
+          <div class="card-head">
+            <span class="card-title" id="docViewerTitle">📄 请从左侧选择任意文档阅读</span>
+            <span style="font-size:11.5px;color:var(--muted);" id="docRealPath"></span>
+          </div>
+          <div class="card-body md" style="min-height:66vh;" id="docViewerBody">
+            <p style="color:var(--muted);">可从左侧浏览当前课题的论文初稿、路线图、A～E 实验复核报告以及 <code>04_组会与周报_Weekly</code> 的讲稿与规范。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: MODEL SWEET SPOTS & SKILLS -->
+    <section id="tab-skills" class="tab-pane">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <div class="seg-bar">
+          <button class="seg-btn active" data-sksec="sweet" onclick="showSkillSec('sweet')">🎯 五大模型甜点位</button>
+          <button class="seg-btn" data-sksec="failover" onclick="showSkillSec('failover')">🛡️ 断档应急 &amp; 交付指令</button>
+          <button class="seg-btn" data-sksec="roles" onclick="showSkillSec('roles')">🧠 连接状态 &amp; Skill 口令</button>
+        </div>
+        <button id="skAllBtn" class="btn btn-light btn-xs" style="margin-bottom:14px;" onclick="toggleSkillAll()">📑 展开全览模式</button>
+      </div>
+      <div id="skillsWrap" class="skills-wrap">
+        <div id="sksec-sweet" class="skill-sec active">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🎯 五大 AI 供应商最新模型配置 · 黄金甜点位（Sweet Spot）与操作矩阵</span>
+          <button class="btn btn-light btn-xs" onclick="copyText('open -e \"$RESEARCH_HUB_ROOT/00_全局中枢_Hub/models.toml\"', '已复制打开 models.toml 命令')">⚙️ 复制编辑 models.toml 命令</button>
+        </div>
+        <div class="card-body">
+          <div id="sweetSpotGrid" class="setup-grid"></div>
+        </div>
+      </div>
+
+
+        </div>
+        <div id="sksec-failover" class="skill-sec">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🛡️ 任意模型无额度 / 断档应急降级矩阵（单点失灵不停工）</span>
+          <span class="badge badge-pass">基于 SSOT 三件套热切换</span>
+        </div>
+        <div class="card-body">
+          <div id="failoverGrid" class="bento-grid"></div>
+          <div style="margin-top:12px;padding-top:12px;border-top:1px dashed var(--border);">
+            <div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:8px;">🤝 跨 AI 接管 · 恢复回交 · 子模块验收交付指令（直接复制可用）</div>
+            <div id="handoverGrid" class="bento-grid"></div>
+          </div>
+        </div>
+      </div>
+
+
+        </div>
+        <div id="sksec-roles" class="skill-sec">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🧠 models.toml 当前激活角色连接状态（脱敏显示）</span>
+          <span style="font-size:12px;color:var(--muted);" id="envFileHint"></span>
+        </div>
+        <div class="card-body">
+          <div class="role-grid" id="rolesGrid"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🔔 什么时候需要你提醒 AI 调用哪个 Skill？（点击卡片复制召唤口令 · Claude 也会在对应节点主动提醒你）</span>
+          <span class="badge badge-pass">双保险：不漏调 · 不乱烧额度</span>
+        </div>
+        <div class="card-body">
+          <div class="bento-grid" id="skillTriggerGuide"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">🛠️ 全局共同科研 Skill 专区（17 个去耦合技能，按需懒加载）</span>
+          <span style="font-size:12px;color:var(--muted);">点击任意卡片在右侧抽屉预览完整规范</span>
+        </div>
+        <div class="card-body">
+          <div class="skill-grid" id="skillGrid"></div>
+        </div>
+      </div>
+
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Slide-over Drawer -->
+  <div class="drawer-backdrop" id="drawerBackdrop" onclick="closeDrawerOnBackdrop(event)">
+    <div class="drawer">
+      <div class="drawer-head">
+        <div style="font-weight:700;font-size:14.5px;" id="drawerTitle">详情查看</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-teal btn-xs" id="drawerActionBtn" style="display:none;"></button>
+          <button class="btn btn-glass btn-xs" onclick="closeDrawer()">✕ 关闭</button>
+        </div>
+      </div>
+      <div class="drawer-body md" id="drawerBody"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">已复制到剪贴板</div>
+
+  <script>
+    let overviewData = null;
+    const dispatchLabels = {PENDING:'已排队', RUNNING:'执行器已接单', SUCCESS:'成功', FAILED:'失败', INTERRUPTED:'执行中断'};
+    function renderExperimentProgress(jobs, filtered) {
+      const panel = document.getElementById('experimentProgress');
+      const running = jobs.filter(job => job.status === 'RUNNING' && ['local_py','colab_py','remote_py','win_codex_py'].includes(job.action));
+      if (!running.length) {
+        panel.textContent = filtered ? '匹配的工单中没有运行中的实验' : '本课题当前没有运行中的实验';
+        return;
+      }
+      panel.replaceChildren(...running.map(job => {
+        const row = document.createElement('div');
+        row.className = 'checkpoint-entry';
+        const label = document.createElement('div');
+        const p = job.progress;
+        const count = !p ? '已接单，等待读取进度' : p.total == null ? `已完成 ${p.done} 步` : `${p.done} / ${p.total} 步（${Math.floor(100*p.done/p.total)}%）`;
+        label.textContent = [job.id, p?.phase, count].filter(Boolean).join(' · ');
+        row.append(label);
+        if (p && p.total != null) {
+          const bar = document.createElement('progress');
+          bar.max = p.total;
+          bar.value = p.done;
+          bar.setAttribute('aria-label', label.textContent);
+          bar.style.cssText = 'width:100%;accent-color:var(--teal)';
+          row.append(bar);
+        }
+        return row;
+      }));
+    }
+    function renderCheckpoints(data, q) {
+      const panel = document.getElementById('checkpointList');
+      const groups = data.checkpoints || [];
+      const rows = [];
+      for (const group of groups) {
+        const attempts = data.jobs.filter(j => j.checkpoint?.key === group.key);
+        if (q && !attempts.length) continue;
+        const entry = document.createElement('div');
+        entry.className = 'checkpoint-entry';
+        const title = document.createElement('strong');
+        const [latest, previous] = group.versions;
+        title.textContent = latest ? `Mac 已保存到第 ${latest.step} 步` : '等待首次保存';
+        entry.appendChild(title);
+        const line = text => {const el = document.createElement('div'); el.textContent = text; entry.appendChild(el);};
+        line(group.key + (latest ? ` · ${new Date(latest.saved * 1000).toLocaleString()} · ${latest.size.toLocaleString()} 字节` : ''));
+        if (previous) line(`上一版保存于第 ${previous.step} 步`);
+        for (const j of attempts.slice(0, 3)) {
+          const tags = [dispatchLabels[j.status] || j.status];
+          if (j.checkpoint.resumed !== null) tags.push(`从第 ${j.checkpoint.resumed} 步恢复`);
+          if (j.checkpoint.saved !== null) tags.push(`已保存第 ${j.checkpoint.saved} 步`);
+          line(`${tags.join(' · ')}　${j.id}`);
+        }
+        rows.push(entry);
+      }
+      if (rows.length) panel.replaceChildren(...rows);
+      else panel.textContent = q ? '匹配工单暂无检查点记录' : '当前课题暂无检查点记录';
+    }
+    let dispatchRequest = 0;
+    async function refreshDispatch() {
+      const id = ++dispatchRequest;
+      const project = document.getElementById('projectSelect').value;
+      const display = document.getElementById('dispatchLive');
+      const q = document.getElementById('dispatchFilter').value.trim();
+      if (!project) return;
+      try {
+        const response = await fetch('/api/jobs?project=' + encodeURIComponent(project) + '&q=' + encodeURIComponent(q), {cache:'no-store'});
+        if (!response.ok) throw new Error(response.status);
+        const data = await response.json();
+        if (id !== dispatchRequest || project !== document.getElementById('projectSelect').value) return;
+        document.getElementById('workerState').textContent = (data.worker_online?'宿主执行器在线':'宿主执行器离线，任务可能等待接单') + (data.cloud_lease?' · 宿主机跟踪的 Colab 会话 '+data.cloud_lease:'');
+        renderExperimentProgress(data.jobs, q);
+        renderCheckpoints(data, q);
+        const text = data.jobs.map(j => `${dispatchLabels[j.status]||j.status}  ${j.id}  ${j.action}  ${new Date(j.updated*1000).toLocaleString()}\n${j.detail}`).join('\n\n') || (q?'本课题未找到该 job_id，请核对投递回执':'本课题暂无工单');
+        if (display.textContent !== text) display.textContent = text;
+      } catch (_) {
+        if (id !== dispatchRequest) return;
+        display.textContent = '运行日志暂时不可用';
+        document.getElementById('experimentProgress').textContent = '无法读取运行进度';
+        document.getElementById('checkpointList').textContent = '无法读取检查点状态';
+        document.getElementById('workerState').textContent = '连接中断';
+      }
+    }
+    document.getElementById('dispatchFilter').addEventListener('input', refreshDispatch);
+    async function pollDispatch() {
+      if (!document.hidden) await refreshDispatch();
+      setTimeout(pollDispatch, 2000);
+    }
+    pollDispatch();
+    let currentProjectData = null;
+    let currentChecksData = null;
+    let activeScenarioIdx = 0;
+
+    function escapeHtml(str) {
+      return (str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function renderInline(raw) {
+      let s = escapeHtml(raw);
+      const codes = [];
+      s = s.replace(/`([^`]+)`/g, (_, c) => { codes.push("<code>" + c + "</code>"); return "\x00C" + (codes.length - 1) + "\x00"; });
+      s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+      s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, l, h) => /^https?:\/\//.test(h) ? `<a href="${h}" target="_blank" rel="noopener">${l}</a>` : `<code>${l}</code>`);
+      return s.replace(/\x00C(\d+)\x00/g, (_, idx) => codes[Number(idx)]);
+    }
+
+    function renderMarkdown(mdText) {
+      if (!mdText || !mdText.trim()) return '<p style="color:#64748B;">（空内容）</p>';
+      const lines = mdText.replace(/\r\n/g, "\n").split("\n");
+      const html = [];
+      let i = 0;
+      while (i < lines.length) {
+        const line = lines[i];
+        if (line.trim().startsWith("```")) {
+          const buf = []; i++;
+          while (i < lines.length && !lines[i].trim().startsWith("```")) { buf.push(escapeHtml(lines[i])); i++; }
+          i++; html.push(`<pre><code>${buf.join("\n")}</code></pre>`); continue;
+        }
+        if (/^\s*---+\s*$/.test(line)) { html.push("<hr />"); i++; continue; }
+        const hm = line.match(/^(#{1,4})\s+(.*)$/);
+        if (hm) { html.push(`<h${hm[1].length}>${renderInline(hm[2])}</h${hm[1].length}>`); i++; continue; }
+        if (line.trim().startsWith(">")) {
+          const q = [];
+          while (i < lines.length && lines[i].trim().startsWith(">")) { q.push(renderInline(lines[i].trim().replace(/^>\s?/, ""))); i++; }
+          html.push(`<blockquote>${q.join("<br />")}</blockquote>`); continue;
+        }
+        if (line.includes("|") && i + 1 < lines.length && /^\s*\|?[\s:|-]+\|[\s:|-]*$/.test(lines[i + 1])) {
+          const parseRow = (r) => r.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => renderInline(c.trim()));
+          const headers = parseRow(line); i += 2;
+          const rows = [];
+          while (i < lines.length && lines[i].includes("|") && lines[i].trim() !== "") { rows.push(parseRow(lines[i])); i++; }
+          let tbl = "<table><thead><tr>" + headers.map((h) => `<th>${h}</th>`).join("") + "</tr></thead><tbody>";
+          for (const row of rows) tbl += "<tr>" + headers.map((_, ci) => `<td>${row[ci] ?? ""}</td>`).join("") + "</tr>";
+          html.push(tbl + "</tbody></table>"); continue;
+        }
+        if (/^\s*[-*+]\s+/.test(line)) {
+          const items = [];
+          while (i < lines.length && /^\s*[-*+]\s+/.test(lines[i])) { items.push(`<li>${renderInline(lines[i].replace(/^\s*[-*+]\s+/, ""))}</li>`); i++; }
+          html.push(`<ul>${items.join("")}</ul>`); continue;
+        }
+        if (/^\s*\d+\.\s+/.test(line)) {
+          const items = [];
+          while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) { items.push(`<li>${renderInline(lines[i].replace(/^\s*\d+\.\s+/, ""))}</li>`); i++; }
+          html.push(`<ol>${items.join("")}</ol>`); continue;
+        }
+        if (line.trim() === "") { i++; continue; }
+        const pBuf = [];
+        while (i < lines.length && lines[i].trim() !== "" && !/^(#{1,4}\s|>\s?|```|[-*+]\s|\d+\.\s|---+$)/.test(lines[i].trim())) { pBuf.push(renderInline(lines[i])); i++; }
+        html.push(`<p>${pBuf.join("<br />")}</p>`);
+      }
+      return html.join("\n");
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById("toast");
+      t.textContent = msg; t.classList.add("show");
+      setTimeout(() => t.classList.remove("show"), 2200);
+    }
+
+    async function copyText(txt, toastMsg) {
+      try { await navigator.clipboard.writeText(txt || ""); }
+      catch {
+        const ta = document.createElement("textarea"); ta.value = txt || "";
+        document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+      }
+      showToast(toastMsg || "已复制到剪贴板");
+    }
+
+    function copyCmd(cmd) {
+      const proj = document.getElementById("projectSelect").value;
+      const full = proj ? `${cmd} --project "${proj}"` : cmd;
+      copyText(full, `已复制：${full}`);
+    }
+
+    function showCockpitSec(secId) {
+      const main = document.getElementById("cockpitBlogMain");
+      if (main) main.classList.remove("show-all");
+      const btn = document.getElementById("cpAllBtn");
+      if (btn) btn.textContent = "📑 展开全览模式";
+      document.querySelectorAll("#cockpitBlogMain .blog-sec").forEach((el) => {
+        el.classList.toggle("active", el.id === `cpsec-${secId}`);
+      });
+      document.querySelectorAll("[data-cpsec]").forEach((b) => {
+        b.classList.toggle("active", b.dataset.cpsec === secId);
+      });
+    }
+    function toggleCockpitAll() {
+      const main = document.getElementById("cockpitBlogMain");
+      const btn = document.getElementById("cpAllBtn");
+      if (!main) return;
+      const isAll = main.classList.toggle("show-all");
+      if (btn) btn.textContent = isAll ? "📖 切回单章聚焦" : "📑 展开全览模式";
+    }
+    function showSkillSec(secId) {
+      const wrap = document.getElementById("skillsWrap");
+      if (wrap) wrap.classList.remove("show-all");
+      const btn = document.getElementById("skAllBtn");
+      if (btn) btn.textContent = "📑 展开全览模式";
+      document.querySelectorAll("#skillsWrap .skill-sec").forEach((el) => {
+        el.classList.toggle("active", el.id === `sksec-${secId}`);
+      });
+      document.querySelectorAll("[data-sksec]").forEach((b) => {
+        b.classList.toggle("active", b.dataset.sksec === secId);
+      });
+    }
+    function toggleSkillAll() {
+      const wrap = document.getElementById("skillsWrap");
+      const btn = document.getElementById("skAllBtn");
+      if (!wrap) return;
+      const isAll = wrap.classList.toggle("show-all");
+      if (btn) btn.textContent = isAll ? "📖 切回单章聚焦" : "📑 展开全览模式";
+    }
+
+    function showManualSub(subId, btnEl) {
+      document.querySelectorAll(".msub-pane").forEach((el) => {
+        el.style.display = el.id === `msub-${subId}` ? "block" : "none";
+      });
+      document.querySelectorAll("[data-msub]").forEach((b) => {
+        b.classList.toggle("active", b.dataset.msub === subId);
+      });
+    }
+
+    function switchTab(tabId) {
+      const manualSubs = ["setup", "workflow", "org", "pebrel", "ghostty"];
+      if (manualSubs.includes(tabId)) {
+        switchTab("manual");
+        showManualSub(tabId);
+        return;
+      }
+      document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === tabId));
+      document.querySelectorAll(".tab-pane").forEach((p) => p.classList.toggle("active", p.id === `tab-${tabId}`));
+    }
+
+    /* Drawer Controls */
+    function openDrawer(title, htmlContent, actionLabel, onAction) {
+      document.getElementById("drawerTitle").textContent = title;
+      document.getElementById("drawerBody").innerHTML = htmlContent;
+      const btn = document.getElementById("drawerActionBtn");
+      if (actionLabel && onAction) {
+        btn.style.display = "inline-flex";
+        btn.textContent = actionLabel;
+        btn.onclick = onAction;
+      } else {
+        btn.style.display = "none";
+      }
+      document.getElementById("drawerBackdrop").classList.add("open");
+    }
+    function closeDrawer() { document.getElementById("drawerBackdrop").classList.remove("open"); }
+    function closeDrawerOnBackdrop(e) { if (e.target.id === "drawerBackdrop") closeDrawer(); }
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDrawer(); });
+
+    function openRawDrawer(kind) {
+      if (!currentProjectData) return;
+      const map = {
+        state: ["🧭 01_PROJECT_STATE.md 原文", currentProjectData.control.state_md],
+        ledger: ["📌 02_DECISION_LEDGER.md 原文", currentProjectData.control.ledger_md],
+        contract: ["🛡️ 00_CONTRACT.md 原文", currentProjectData.control.contract_md],
+        claude: ["🤖 CLAUDE.md 主控守则原文", currentProjectData.control.claude_md],
+      };
+      const entry = map[kind];
+      if (!entry) return;
+      openDrawer(entry[0], renderMarkdown(entry[1]), "📋 复制原文", () => copyText(entry[1], "已复制 Markdown 原文"));
+    }
+
+    async function runDryRunDrawer() {
+      const proj = document.getElementById("projectSelect").value;
+      const res = await fetch(`/api/dryrun?project=${encodeURIComponent(proj)}&target=all`, { method: "POST" });
+      const data = await res.json();
+      openDrawer(
+        `🔍 会诊负载预览 (${proj})`,
+        `<p style="color:var(--muted);">以下为宿主机执行 <code>consult all --dry-run</code> 的实时负载与模型路由预览（未产生任何 API 消耗）：</p><pre><code>${escapeHtml(data.output || "")}</code></pre>`,
+        "📋 复制执行命令",
+        () => copyCmd("consult all")
+      );
+    }
+
+    async function runAllChecks(notify) {
+      const proj = document.getElementById("projectSelect").value;
+      if (!proj) return;
+      const res = await fetch(`/api/checks?project=${encodeURIComponent(proj)}`);
+      currentChecksData = await res.json();
+      renderChecksRadar();
+      renderVisualTelemetry();
+      renderBusFlowVisual();
+      renderHeroCards();
+      if (notify) showToast(`六维体检完成：健康度 ${currentChecksData.score}%`);
+    }
+
+    function renderHeroCards() {
+      if (!overviewData || !currentProjectData) return;
+      const p = currentProjectData;
+      const meta = overviewData.projects.find((x) => x.name === p.name) || {};
+      const readyRoles = overviewData.roles.filter((r) => r.ready).length;
+      const score = currentChecksData ? currentChecksData.score : "--";
+      const sum = currentChecksData ? currentChecksData.summary : { pass: 0, warn: 0, fail: 0 };
+      const ringColor = score >= 90 ? "#15803D" : score >= 70 ? "#D97706" : "#DC2626";
+      const dashArray = 163.36;
+      const dashOffset = typeof score === "number" ? dashArray * (1 - score / 100) : dashArray;
+
+      const isSealed = (p.control.state_md || "").includes("封存");
+      const roleMap = {};
+      for (const r of overviewData.roles) roleMap[r.role] = r.ready;
+
+      document.getElementById("heroGrid").innerHTML = `
+        <div class="hero-card navy">
+          <div>
+            <div class="hero-label">当前在研课题 (${overviewData.projects.length} 个)</div>
+            <div class="hero-val" style="font-size:16.5px;">${escapeHtml(p.name)}</div>
+            <div class="hero-sub">
+              ${isSealed ? '<span class="badge badge-pass">🔒 真实测试集封存中</span>' : '<span class="badge badge-info">🚀 活跃研发中</span>'}
+              <span style="margin-left:4px;">更新 ${escapeHtml(meta.updated_at || "-")}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-card ok">
+          <div>
+            <div class="hero-label">六维系统与合规健康度</div>
+            <div class="hero-val">${score}%</div>
+            <div class="hero-sub">${sum.pass} 通过 · ${sum.warn} 提醒 · ${sum.fail} 阻断</div>
+          </div>
+          <div class="ring-wrap">
+            <svg width="64" height="64" viewBox="0 0 64 64">
+              <circle cx="32" cy="32" r="26" fill="none" stroke="#E5ECEA" stroke-width="6" />
+              <circle cx="32" cy="32" r="26" fill="none" stroke="${ringColor}" stroke-width="6"
+                stroke-linecap="round" stroke-dasharray="${dashArray}" stroke-dashoffset="${dashOffset}"
+                transform="rotate(-90 32 32)" />
+            </svg>
+            <div class="ring-text">${score}%</div>
+          </div>
+        </div>
+
+        <div class="hero-card blue">
+          <div>
+            <div class="hero-label">科研资产与决策台账</div>
+            <div class="hero-val">${p.parsed_decisions.length} 条决策 · ${p.total_files} 份文档</div>
+            <div class="hero-sub">周报归档 ${meta.weekly_sessions ?? 0} 期 · 全局 Skill ${overviewData.skills.length} 个</div>
+          </div>
+        </div>
+
+        <div class="hero-card" style="cursor:pointer;" onclick="switchTab('skills')" title="点击查看五大供应商模型甜点位与操作指南">
+          <div style="width:100%;">
+            <div class="hero-label">五大 AI 军团状态 (${readyRoles}/${overviewData.roles.length} API就绪 · 点此看甜点位)</div>
+            <div class="fleet-pills">
+              <span class="fleet-pill"><span class="dot dot-ok"></span>Claude 主控</span>
+              <span class="fleet-pill"><span class="dot ${roleMap.advisor ? "dot-ok" : "dot-warn"}"></span>GPT 顾问</span>
+              <span class="fleet-pill"><span class="dot ${roleMap.redteam ? "dot-ok" : "dot-warn"}"></span>DS 红队</span>
+              <span class="fleet-pill"><span class="dot dot-ok"></span>Gemini 文献</span>
+              <span class="fleet-pill"><span class="dot ${roleMap.glm_heavy ? "dot-ok" : "dot-warn"}"></span>GLM 周报</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderPipeline() {
+      const p = currentProjectData;
+      const ms = p.parsed_milestones || [];
+      let steps = [];
+      if (p.name.startsWith("P01")) {
+        steps = [
+          { state: "done", tag: "✅ D-001~007", name: "管线校准与锚点基线", desc: "T3 差 3.15e-14；250 步 ±0.5% 等价；锚点偏移 192.25 nm" },
+          { state: "done", tag: "✅ D-008~018", name: "合成容量 P1 与候选诊断", desc: "G/C 臂未过 50%；D1 十倍数据判「设计受限」(上限 GVS −5.4%)" },
+          { state: "done", tag: "✅ D-019~029", name: "真实训练集 K=5 探针", desc: "2,922 条外折：R1 GVS −1.99% / H3 −1.73%；发现 G2ε 欠分散 (0.781)" },
+          { state: "done", tag: "✅ D-030~037", name: "真实校准集一次性筛选", desc: "974 条筛出唯一候选 C2 (对 G2ε GVS −4.5%，对 R1 不可区分)" },
+          { state: "active", tag: "🔒 D-038~041 待拍板", name: "测试集一次性确认 (阶段 P/T)", desc: "975 条测试坐标封存未读；规格 v2 与脚本已写，待预检与拍板" },
+        ];
+      } else if (ms.length > 0) {
+        steps = ms.slice(0, 5).map((m) => ({
+          state: m.status_badge === "done" ? "done" : m.status_badge === "warn" ? "active" : "pending",
+          tag: m.status_text,
+          name: m.title,
+          desc: m.summary.slice(0, 60),
+        }));
+      } else {
+        steps = [{ state: "active", tag: "🟡 立项中", name: "设定核心假设与基线", desc: "请先完善 00_CONTRACT.md 与最小基线脚本" }];
+      }
+
+      document.getElementById("pipelineView").innerHTML = steps
+        .map(
+          (s) => `
+          <div class="pipe-step ${s.state}">
+            <span class="pipe-tag">${escapeHtml(s.tag)}</span>
+            <div class="pipe-name">${escapeHtml(s.name)}</div>
+            <div class="pipe-desc">${escapeHtml(s.desc)}</div>
+          </div>
+        `
+        )
+        .join("");
+    }
+
+    function toggleTodoFull(idx) {
+      const box = document.getElementById(`todo-full-${idx}`);
+      const btn = document.getElementById(`todo-btn-${idx}`);
+      if (!box || !btn) return;
+      const open = box.style.display === "block";
+      box.style.display = open ? "none" : "block";
+      btn.textContent = open ? btn.dataset.moreText : "▾ 收起完整历史流水";
+    }
+
+    function renderTodosAndModules() {
+      const todos = currentProjectData.parsed_todos || [];
+      document.getElementById("todoCountBadge").textContent = `${todos.length} 项待办`;
+      document.getElementById("todosView").innerHTML = todos.length
+        ? todos
+            .map((t, i) => {
+              const cls = i === 0 ? "p1" : i === 1 ? "p2" : "";
+              const hasMore = t.full_detail && t.full_detail.length > (t.detail || "").length;
+              const moreLabel = hasMore ? `▸ 展开完整历史流水 (${t.full_detail.length} 字)` : "";
+              return `
+                <div class="todo-item ${cls}">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <span class="todo-prio">${escapeHtml(t.priority)}</span>
+                    ${hasMore ? `<button id="todo-btn-${i}" data-more-text="${escapeHtml(moreLabel)}" class="card-collapse-btn" onclick="toggleTodoFull(${i})">${escapeHtml(moreLabel)}</button>` : ""}
+                  </div>
+                  <div class="todo-title">${escapeHtml(t.title)}</div>
+                  <div class="todo-detail" style="line-height:1.6;">${escapeHtml(t.detail)}</div>
+                  ${hasMore ? `<div id="todo-full-${i}" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);font-size:12px;color:var(--muted);line-height:1.65;max-height:300px;overflow-y:auto;">${escapeHtml(t.full_detail)}</div>` : ""}
+                </div>
+              `;
+            })
+            .join("")
+        : '<p style="color:var(--muted);">暂无待推进任务，可点击右上角查看沙盘原文。</p>';
+
+      const mods = currentProjectData.module_stats || [];
+      const maxExp = Math.max(1, ...mods.map((m) => m.exp_count));
+      document.getElementById("moduleBarsView").innerHTML = mods.length
+        ? mods
+            .map((m) => {
+              const pct = Math.max(8, Math.round((m.exp_count / maxExp) * 100));
+              return `
+                <div class="bar-row" onclick="jumpToModule('${escapeHtml(m.dir_name)}')" title="点击在浏览器查看 ${escapeHtml(m.dir_name)}">
+                  <div class="bar-label">${escapeHtml(m.code)} · ${escapeHtml(m.short_name)}</div>
+                  <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${m.color};"></div></div>
+                  <div class="bar-num">${m.exp_count} 项 / ${m.md_count} 文</div>
+                </div>
+              `;
+            })
+            .join("")
+        : '<p style="color:var(--muted);">当前课题采用扁平实验目录，请前往「论文 / 实验 / 周报」标签页查看。</p>';
+    }
+
+    function jumpToModule(dirName) {
+      switchTab("explorer");
+      const inp = document.getElementById("fileFilter");
+      inp.value = dirName;
+      renderFileTree();
+    }
+
+    function renderChecksRadar() {
+      if (!currentChecksData) return;
+      document.getElementById("checksRadarView").innerHTML = currentChecksData.checks
+        .map((c, idx) => {
+          const bCls = c.status === "pass" ? "badge-pass" : c.status === "warn" ? "badge-warn" : "badge-fail";
+          const bTxt = c.status === "pass" ? "🟢 PASS" : c.status === "warn" ? "🟡 WARN" : "🔴 FAIL";
+          const openCls = c.status !== "pass" ? "open" : "";
+          return `
+            <div class="check-item ${openCls}" id="chk-${idx}">
+              <div class="check-top" onclick="document.getElementById('chk-${idx}').classList.toggle('open')">
+                <div>
+                  <div class="check-name">${escapeHtml(c.title)}</div>
+                  <div class="check-cat">${escapeHtml(c.category)} · ${escapeHtml(c.metric_text)}</div>
+                </div>
+                <span class="badge ${bCls}">${bTxt}</span>
+              </div>
+              <div class="check-details">
+                ${c.details.map((d) => `<div style="margin:2px 0;">• ${escapeHtml(d)}</div>`).join("")}
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+    }
+
+    function renderRedlinesAndBento() {
+      const red = currentProjectData.parsed_redlines || { thresholds: [], banned_pills: [] };
+      document.getElementById("redlineChips").innerHTML = (red.thresholds || [])
+        .map((t) => `<div class="stat-chip"><span>${escapeHtml(t.label)}</span>${escapeHtml(t.value)}</div>`)
+        .join("");
+      document.getElementById("bannedPills").innerHTML =
+        `<span style="font-size:12px;font-weight:700;color:var(--err);align-self:center;">🚫 不宣称禁区：</span>` +
+        (red.banned_pills || []).map((b) => `<span class="ban-chip">${escapeHtml(b)}</span>`).join("");
+
+      const decs = currentProjectData.parsed_decisions || [];
+      document.getElementById("decisionBento").innerHTML = decs
+        .map(
+          (d) => `
+          <div class="bento-card" onclick="openRawDrawer('ledger')" title="点击查看完整台账">
+            <div class="bento-head">
+              <span class="bento-id">${escapeHtml(d.id)}</span>
+              <span class="bento-date">${escapeHtml(d.date)}</span>
+            </div>
+            <div class="bento-title">${escapeHtml(d.title)}</div>
+            <div class="bento-desc">${escapeHtml(d.rationale)}</div>
+          </div>
+        `
+        )
+        .join("");
+    }
+
+    function getTplVars() {
+      const p = currentProjectData || { name: (overviewData && overviewData.active_project) || "<课题目录名>", vm_path: "/Volumes/My Shared Files/ClaudeShield-Exchange/01_在研课题_Projects/<课题目录名>" };
+      const scriptPath = (document.getElementById("tplScript") && document.getElementById("tplScript").value.trim()) || "03_代码与脚本/run.py";
+      const scriptArgs = (document.getElementById("tplArgs") && document.getElementById("tplArgs").value.trim()) || "--out ./colab_out";
+      const resultPath = (document.getElementById("tplResult") && document.getElementById("tplResult").value.trim()) || "/content/colab_out/result.json";
+      const localDir = ((document.getElementById("tplLocalDir") && document.getElementById("tplLocalDir").value.trim()) || "02_实验与验证/colab_results").replace(/\/+$/, "");
+      const gpuType = (document.getElementById("tplGpu") && document.getElementById("tplGpu").value) || "T4";
+      const sessionName = (document.getElementById("tplSession") && document.getElementById("tplSession").value.trim()) || "run_gpu";
+      const resultFile = resultPath.split("/").pop() || "result.json";
+      return { p, scriptPath, scriptArgs, resultPath, localDir, gpuType, sessionName, resultFile };
+    }
+
+    function refreshCmdTemplates() {
+      renderScenario(activeScenarioIdx);
+      renderEssentialCmds();
+    }
+
+    function renderScenario(idx, btnEl) {
+      activeScenarioIdx = idx;
+      document.querySelectorAll(".scen-btn").forEach((b) => b.classList.remove("active"));
+      if (btnEl) btnEl.classList.add("active");
+      const { p, scriptPath, scriptArgs, resultPath, localDir, gpuType, sessionName, resultFile } = getTplVars();
+
+      const scenarios = [
+        [
+          { step: "Step 1 · 虚拟机 Claude Desktop", title: "开场对齐状态（选 Sonnet 5.5）", cmd: `你当前负责 ${p.vm_path}。请先读取 CLAUDE.md、_control/00_CONTRACT.md、01_PROJECT_STATE.md 与 02_DECISION_LEDGER.md，汇报最新进度和前 3 项待办。` },
+          { step: "Step 2 · 宿主机 Ghostty 终端", title: "跑本地脚本（自动留痕 + 弹窗）", cmd: `cd "$RESEARCH_HUB_ROOT/01_在研课题_Projects/${p.name}" && runnotify python3 "${scriptPath}" ${scriptArgs}` },
+          { step: "Step 3 · 虚拟机 Claude Desktop", title: "分析结果并更新作战沙盘", cmd: `实验已运行完毕，结果已保存，请核验后更新 _control/01_PROJECT_STATE.md。` },
+        ],
+        [
+          { step: "Step 1 · 虚拟机 Claude Desktop", title: "浓缩 1500 字内会诊简报", cmd: `请把本阶段方案核心背景、红线约束以及需要裁决的 2 个具体问题浓缩至 1500 字内，写入 _bus/ask.md。` },
+          { step: "Step 2 · 宿主机 Ghostty 终端", title: "一键并发呼叫 DS (deepseek-flash) + GPT（可加 --effort xhigh --eli5）", cmd: `consult all --eli5 --project "${p.name}"` },
+          { step: "Step 3 · 虚拟机 Claude Desktop", title: "参谋长过滤与 A/B 拍板", cmd: `会诊回执已到，请读取 _bus/reply.md，对照 _control/02_DECISION_LEDGER.md 过滤越权意见，向我汇报 A/B 拍板选项。` },
+        ],
+        [
+          { step: "Step 1 · 虚拟机 Claude Desktop", title: "去 AI 腔与去防御化精修", cmd: `请先按 SKILL_INDEX.md 读取 writing-core 与 anti-defensive-writing，把本节的消极免责改为正向范围定界（绝不触碰 _control 内部红线）。` },
+          { step: "Step 2 · 宿主机 Pebrel 终端", title: "一键自动体检（断链/禁词/防御句）", cmd: `checkms --project "${p.name}"` },
+          { step: "Step 3 · Antigravity (Gemini 4)", title: "批量文献卡片与引用核验", cmd: `请按 citation-check 与 literature-report-ppt 规范，精读 02_公共资料库_Library 里的 PDF 并输出带页码出处的文献卡片。` },
+        ],
+        [
+          { step: "Step 1 · 虚拟机 Claude Desktop", title: "只读主线生成周报大纲/讲稿", cmd: `请严格遵守 04_组会与周报_Weekly/README_周报写入规范.md，只读主线已落盘结果，新建本周日期目录并整理 01-周报大纲.md 与 02-逐页演讲稿.md。` },
+          { step: "Step 2 · 宿主机终端 (GLM 多轮引擎)", title: "生成并对话迭代原生可编辑 PPT", cmd: `ppt --topic "组会汇报" --project "${p.name}"` },
+          { step: "Step 3 · 宿主机终端", title: "文稿与 PPT 双重质检（已内置于 ppt）", cmd: `checkms --project "${p.name}"` },
+        ],
+        [
+          { step: "Step 1 · 宿主机终端", title: "一键创建新课题舱并生成秒切别名", cmd: `newproj "P03_新课题名称" --goal "一句话描述你想解决的问题"` },
+          { step: "Step 2 · 虚拟机 Claude (Opus 5.5)", title: "带 idea-evaluator 做五维压力测试", cmd: `请先读取 ../../00_全局中枢_Hub/skills/idea-evaluator/SKILL.md。我的初步想法是：【写下你的直觉与已有数据】。请先做五维评估与致命伤排查，再通过问答和我收敛出可证伪假设与 MVP 验证路线，最后浓缩写入 _bus/ask.md。` },
+          { step: "Step 3 · 宿主机终端", title: "召开外部立项听证会后冻结三件套", cmd: `consult all --effort high --project "P03_新课题名称"` },
+        ],
+        [
+          { step: "Step 1 · 宿主机 Antigravity (Gemini 4)", title: "批量精读 PDF / 概念问答（不耗 Claude）", cmd: `请按 literature-report-ppt 规范精读 02_公共资料库_Library 中的目标 PDF，用白话逐图逐公式拆解，并输出带页码的《文献事实卡片.md》存入当前课题目录。` },
+          { step: "Step 2 · 宿主机终端 (GLM 极速)", title: "快速中文总结或表格清洗（不耗 Claude）", cmd: `consult glm_fast --project "${p.name}"` },
+          { step: "Step 3 · 虚拟机 Claude (Sonnet 5.5)", title: "仅在需要结合课题做设计决策时介入", cmd: `请读取刚刚存入课题的《文献事实卡片.md》，对照 _control/00_CONTRACT.md 评估哪些基线或实验设计需要吸收进 01_PROJECT_STATE.md。` },
+        ],
+        [
+          { step: "Step 1 · 宿主机 Ghostty (Colab CLI)", title: `免浏览器租 ${gpuType} GPU 跑脚本`, cmd: `runnotify colab run -s ${sessionName} --gpu ${gpuType} --timeout 0 --keep "${scriptPath}" ${scriptArgs}` },
+          { step: "Step 2 · 宿主机 Ghostty (拉回结果并释放)", title: "拉回产物进指定目录并释放 GPU", cmd: `mkdir -p "${localDir}" && colab download -s ${sessionName} "${resultPath}" "${localDir}/${resultFile}" && colab stop -s ${sessionName}` },
+          { step: "Step 3 · 虚拟机 Claude Desktop", title: "读取拉回结果并更新作战沙盘", cmd: `Colab CLI 实验已跑完并拉回 ${localDir}/${resultFile}，请按 verification 核验后汇报下一步。` },
+        ],
+      ];
+
+      document.getElementById("scenarioPanel").innerHTML = scenarios[idx]
+        .map(
+          (card, ci) => `
+          <div class="step-card">
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--teal-dark);">${escapeHtml(card.step)}</div>
+              <div style="font-weight:700;font-size:13.5px;color:var(--navy);margin:3px 0 7px;">${escapeHtml(card.title)}</div>
+              <div class="cmd-box">${escapeHtml(card.cmd)}</div>
+            </div>
+            <button class="btn btn-teal btn-xs" style="justify-content:center;" onclick="copyScenarioCmd(${idx}, ${ci})">📋 一键复制</button>
+          </div>
+        `
+        )
+        .join("");
+      window._scenCache = scenarios;
+    }
+
+    function copyScenarioCmd(si, ci) {
+      const item = window._scenCache[si][ci];
+      if (item) copyText(item.cmd, `已复制：${item.title}`);
+    }
+
+    function renderSweetSpots() {
+      const roles = (overviewData && overviewData.roles) || [];
+      const roleMap = {};
+      for (const r of roles) roleMap[r.role] = r;
+      const projName = (currentProjectData && currentProjectData.name) || (overviewData && overviewData.active_project) || "P01_染色质块条件插补";
+
+      const providers = [
+        {
+          tag: "① Anthropic Claude · 虚拟机桌面端",
+          role: "唯一日常主控 & 参谋长（100% 写权限）",
+          badge: '<span class="badge badge-pass">🟢 虚拟机 Pro 套餐</span>',
+          sweet: "Claude Sonnet 5.5 (`claude-sonnet-5-5` · 关 Extended Thinking)",
+          sweetNote: "占 85% 日常时间：读写 _control/、编写实验脚本、撰写 _bus/ask.md、整理结果表。5h 窗口额度消耗仅为 Opus 的 ~1/5。",
+          heavy: "Claude Opus 5.5 (`claude-opus-5-5` 开推理) / Claude Fable 5.2（长篇润色）",
+          heavyNote: "占 15% 攻坚时间：立项定红线、吸收 GPT+DS 冲突意见做参谋长仲裁、写论文核心 Discussion。",
+          pitfall: "严禁开着 Opus 5.5 跑日常改 Bug 或格式清洗，否则 1 小时内打光 5 小时滚动额度。",
+          how: "在虚拟机 Claude Desktop 输入框左下角模型下拉菜单直接切换。",
+          actions: [],
+        },
+        {
+          tag: "② OpenAI GPT / Codex · 宿主机 cc-switch",
+          role: "首席科学顾问（只读门禁裁决，无写权限）",
+          badge: roleMap.advisor && roleMap.advisor.ready
+            ? `<span class="badge badge-pass">🟢 已联动 ${escapeHtml(roleMap.advisor.key_source)} (${escapeHtml(roleMap.advisor.model)})</span>`
+            : '<span class="badge badge-warn">🟡 待确认 cc-switch</span>',
+          sweet: "GPT-6.2 Astra (`gpt-6.2-astra`, reasoning=high)",
+          sweetNote: "门禁方法学审查、G2ε 数学推导、反常实验结果机理诊断（当前默认 auto 自动跟随 cc-switch）。",
+          heavy: "GPT-6.1 Sol (`gpt-6.1-sol`) · GPT-5.6 High (`gpt-5.6-high`) · GPT-5.3 Codex High (`gpt-5.3-codex-high`) · GPT-5.5 Pro (`gpt-5.5-pro`)",
+          heavyNote: "通用切换用 gpt-6.1-sol / gpt-5.6-high；代码数值复核切 gpt-5.3-codex-high；极限数学才用 gpt-5.5-pro；思考深度用 --effort off/low/medium/high/xhigh。",
+          pitfall: "坚持 One-Shot（单次投喂 1500 字 ask.md），绝不用高阶推理档多轮闲聊，否则隐藏推理 Token 极贵。",
+          how: "默认随 cc-switch 切换；Ghostty 敲 consult advisor，可加 --model <ID> 临时切模型，加 --effort xhigh --eli5 开极深思考+白话解释。",
+          actions: [
+            { label: "📋 默认顾问会诊", cmd: `consult advisor --project "${projName}"` },
+            { label: "📋 极深思考+人话 (xhigh)", cmd: `consult advisor --effort xhigh --eli5 --project "${projName}"` },
+            { label: "📋 切 GPT-6.1 Sol", cmd: `consult advisor --project "${projName}" --model gpt-6.1-sol` },
+            { label: "📋 切 GPT-5.6 High", cmd: `consult advisor --project "${projName}" --model gpt-5.6-high` },
+            { label: "📋 切 5.3 Codex", cmd: `consult advisor --project "${projName}" --model gpt-5.3-codex-high` },
+          ],
+        },
+        {
+          tag: "③ DeepSeek 官方 API · 宿主机直连",
+          role: "独立红队 Reviewer #2（只挑致命伤，无写权限）",
+          badge: roleMap.redteam && roleMap.redteam.ready ? '<span class="badge badge-pass">🟢 官方 API 就绪</span>' : '<span class="badge badge-warn">🟡 待填 DEEPSEEK_API_KEY</span>',
+          sweet: "DeepSeek V4.1 Flash (`deepseek-flash`)",
+          sweetNote: "红队挑刺唯一黄金甜点位（API 实测 ID 为 deepseek-flash）：速度极快、零讨好属性、专抓信息泄漏与基线不公。",
+          heavy: "DeepSeek V4 Pro (`deepseek-v4-pro`)",
+          heavyNote: "仅在需要构造复杂反例证明或高难度公式挑刺时，通过 --model deepseek-v4-pro 临时召唤。",
+          pitfall: "红队平时关在笼子里，只在门禁节点触发，且只准输出漏洞列表、不准给改写方案把主线带偏。",
+          how: "宿主机 Ghostty 运行 consult redteam（或 consult all 与 GPT 顾问双盲并发）；--model 只建议在单角色下覆盖。",
+          actions: [
+            { label: "📋 V4.1 Flash 红队", cmd: `consult redteam --project "${projName}"` },
+            { label: "📋 双盲并发(DS+GPT)", cmd: `consult all --project "${projName}"` },
+            { label: "📋 临时切 V4 Pro", cmd: `consult redteam --project "${projName}" --model deepseek-v4-pro` },
+          ],
+        },
+        {
+          tag: "④ Google Gemini · 宿主机 Antigravity 原生",
+          role: "情报局长 & 文献馆长（百万上下文吞吐）",
+          badge: '<span class="badge badge-pass">🟢 原生客户端零封号</span>',
+          sweet: "Gemini 4 Argon (Medium) / Gemini 3.8 Flash",
+          sweetNote: "占 80% 文献工作：一次性吞吐 02_公共资料库_Library/ 下几十篇 PDF 或数千行日志，输出带页码的《文献事实卡片》。",
+          heavy: "Orchestrator (Argon) / Gemini 4 Hydrogen (XHigh)",
+          heavyNote: "复杂跨端工程编排或对大型开源生信项目做全仓源码拆解调研时切换。",
+          pitfall: "【防封号铁律】只用宿主机 Antigravity 原生窗口直接打开交换区目录，严禁把 OAuth 凭证接入 cli2api 或任何第三方反代。",
+          how: "在 Antigravity 客户端右下角模型栏直接切换；本地技能已全部同步至 ~/.gemini/config/skills/。",
+          actions: [
+            { label: "📋 复制文献卡片指令", cmd: `请先读取 00_全局中枢_Hub/skills/literature-report-ppt/SKILL.md 与 citation-check/SKILL.md，精读 02_公共资料库_Library 中的目标 PDF 并产出带页码出处的事实卡片。` },
+          ],
+        },
+        {
+          tag: "⑤ GLM (s2api.oonet.icu) · 宿主机直连",
+          role: "Track B 组会周报 & PPT 交付专员（单向只读主线）",
+          badge: roleMap.glm_heavy && roleMap.glm_heavy.ready ? '<span class="badge badge-pass">🟢 s2api.oonet.icu 就绪</span>' : '<span class="badge badge-warn">🟡 待填 GLM_API_KEY</span>',
+          sweet: "GLM-5.3 (`glm-5.3`) —— 重型周报与脚本主笔",
+          sweetNote: "按 04_组会与周报_Weekly/README_周报写入规范.md 生成 01-周报大纲、02-逐页演讲稿与 python-pptx 脚本。",
+          heavy: "GLM-5.3-Flash (`glm-5.3-flash`, $0.15/$0.50) · GLM-5.3-FlashX",
+          heavyNote: "极速甜点位：会议速记整理、中文学术措辞批量清洗、表格结构化转换（极低成本秒回）。",
+          pitfall: "严禁让 GLM 反向修改科研主线结论，所有幻灯片生成后必须跑 checkms 与 check_pptx_quality.py 双检。",
+          how: "宿主机 Pebrel 运行 consult glm_heavy（5.3）或 consult glm_fast（5.3-flash）。",
+          actions: [
+            { label: "📋 调用 GLM-5.3 (周报)", cmd: `consult glm_heavy --project "${projName}"` },
+            { label: "📋 调用 GLM-5.3-Flash (快跑)", cmd: `consult glm_fast --project "${projName}"` },
+          ],
+        },
+      ];
+
+      window._sweetActions = [];
+      document.getElementById("sweetSpotGrid").innerHTML = providers
+        .map((pv) => {
+          const btns = (pv.actions || [])
+            .map((a) => {
+              const id = window._sweetActions.push(a) - 1;
+              return `<button class="btn btn-teal btn-xs" onclick="copySweetIdx(${id})">${a.label}</button>`;
+            })
+            .join("");
+          return `
+            <div class="setup-card">
+              <div>
+                <div class="setup-head">
+                  <div>
+                    <div style="font-size:11px;color:var(--teal-dark);font-weight:700;">${escapeHtml(pv.tag)}</div>
+                    <div style="font-weight:700;color:var(--navy);font-size:13.5px;">${escapeHtml(pv.role)}</div>
+                  </div>
+                  ${pv.badge}
+                </div>
+                <div class="setup-body" style="font-size:12.5px;">
+                  <div style="background:var(--teal-bg);padding:8px 10px;border-radius:7px;margin-bottom:8px;">
+                    <div style="font-weight:700;color:var(--navy);">🎯 黄金甜点位：${escapeHtml(pv.sweet)}</div>
+                    <div style="color:var(--ink);font-size:12px;margin-top:2px;">${escapeHtml(pv.sweetNote)}</div>
+                  </div>
+                  <div style="margin-bottom:6px;"><strong>🔥 进阶/重型档：</strong><code>${escapeHtml(pv.heavy)}</code><br/><span style="color:var(--muted);font-size:12px;">${escapeHtml(pv.heavyNote)}</span></div>
+                  <div style="margin-bottom:6px;color:var(--err);font-size:12px;"><strong>🚫 避坑禁区：</strong>${escapeHtml(pv.pitfall)}</div>
+                  <div style="color:var(--muted);font-size:12px;"><strong>⌨️ 操作方法：</strong>${escapeHtml(pv.how)}</div>
+                </div>
+              </div>
+              ${btns ? `<div class="setup-foot">${btns}</div>` : ""}
+            </div>
+          `;
+        })
+        .join("");
+
+      const failovers = [
+        {
+          title: "Claude 没额度（主控停摆）",
+          badge: "Antigravity / Codex 临时代理",
+          desc: "用 Antigravity (Gemini 4) 或 Codex 接管：先读 _control/ 三件套，严守不删台账与不动冻结存档红线，并在 01_PROJECT_STATE.md 留接续记录。",
+          label: "📋 复制代理主控接管口令",
+          cmd: `Claude 暂时无额度，请你作为当前课题（${projName}）的临时代理主控：先读取 CLAUDE.md、_control/00_CONTRACT.md、01_PROJECT_STATE.md 与 02_DECISION_LEDGER.md，严守只增不删台账与冻结存档红线，完成当前阶段分析/脚本并在 01_PROJECT_STATE.md 记录本次变更。`,
+        },
+        {
+          title: "GPT 没额度（advisor 断档）",
+          badge: "DeepSeek V4 Pro 顶替",
+          desc: "改用 DeepSeek 重型思考档做深度推演，或在 cc-switch 切到备用渠道后重跑。",
+          label: "📋 复制 DS V4 Pro 顶替命令",
+          cmd: `consult redteam --model deepseek-v4-pro --effort xhigh --eli5 --render --project "${projName}"`,
+        },
+        {
+          title: "DeepSeek 没额度（redteam 断档）",
+          badge: "GPT 兼任红队",
+          desc: "改用 GPT 顾问开极深思考按 Reviewer #2 视角挑刺（或临时用 consult glm_heavy）。",
+          label: "📋 复制 GPT 红队视角命令",
+          cmd: `consult advisor --effort xhigh --eli5 --render --project "${projName}"`,
+        },
+        {
+          title: "Gemini 没额度（Antigravity 断档）",
+          badge: "Claude / GLM / Codex 分担",
+          desc: "短中篇文献拆解与代码排查切回 Claude Sonnet 或 codexbox；中文总结与表格清洗用 GLM Flash。",
+          label: "📋 复制 GLM 极速整理命令",
+          cmd: `consult glm_fast --render --project "${projName}"`,
+        },
+        {
+          title: "GLM 没额度（ppt / 周报断档）",
+          badge: "DeepSeek / 主控 + checkms",
+          desc: "周报大纲与讲稿改用 consult redteam 生成，写完后用本地 0 消耗 checkms 做红线质检。",
+          label: "📋 复制本地 0 消耗体检命令",
+          cmd: `checkms --project "${projName}"`,
+        },
+        {
+          title: "全部外部 API 限流（0 额度推进）",
+          badge: "纯本地/云端算力不停",
+          desc: "runnotify 跑脚本、colab 跑 GPU、watchdone 监听 Drive、mdview 读文档均全程 0 模型额度消耗。",
+          label: "📋 复制 0 消耗自监控命令",
+          cmd: `runnotify python3 "03_代码与脚本/run.py"`,
+        },
+      ];
+      window._failoverList = failovers;
+      const fg = document.getElementById("failoverGrid");
+      if (fg) {
+        fg.innerHTML = failovers
+          .map(
+            (fo, idx) => `
+            <div class="bento-card" style="display:flex;flex-direction:column;justify-content:space-between;gap:8px;">
+              <div>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:4px;">
+                  <strong style="color:var(--navy);font-size:13px;">${escapeHtml(fo.title)}</strong>
+                  <span class="badge badge-info" style="font-size:10.5px;">${escapeHtml(fo.badge)}</span>
+                </div>
+                <div style="font-size:12px;color:var(--muted);line-height:1.5;">${escapeHtml(fo.desc)}</div>
+              </div>
+              <button class="btn btn-light btn-xs" style="align-self:flex-start;" onclick="copyFailoverIdx(${idx})">${escapeHtml(fo.label)}</button>
+            </div>
+          `
+          )
+          .join("");
+      }
+      renderHandoverCards(projName);
+    }
+
+    function copyFailoverIdx(idx) {
+      const fo = window._failoverList && window._failoverList[idx];
+      if (fo) copyText(fo.cmd, `已复制应急指令：${fo.title}`);
+    }
+
+    function renderHandoverCards(projName) {
+      const handovers = [
+        {
+          title: "① 断档接管（交给 Antigravity / Codex 代理主控）",
+          badge: "主控无额度时",
+          desc: "要求代理先读 _control/ 三件套、严守红线，并在 01_PROJECT_STATE.md 留下接续记录。",
+          cmd: `Claude 暂时无额度，请你作为当前课题（${projName}）的临时代理主控：\n1. 先读取 CLAUDE.md、_control/00_CONTRACT.md、_control/01_PROJECT_STATE.md 与 _control/02_DECISION_LEDGER.md；\n2. 严守 00_CONTRACT 红线与“台账只增不删 / 不动冻结存档-*”规则；\n3. 完成本阶段任务后，把改动文件、实测结论与待办写回 _control/01_PROJECT_STATE.md 的【临时代理接续记录】小节，方便原主控恢复后无缝接回。`,
+        },
+        {
+          title: "② 恢复回交（外部/代理跑完 → 交回 Claude 新会话）",
+          badge: "主控恢复后",
+          desc: "让恢复后的 Claude 重读三件套、reply.md 与实验清单，核对一致性后接管主线。",
+          cmd: `请先读取 CLAUDE.md、_control/00_CONTRACT.md、_control/01_PROJECT_STATE.md、_control/02_DECISION_LEDGER.md 以及最新的 _bus/reply.md（或 run_manifest_*.json）。\n此前部分工作已由代理模型/宿主机工具推进并登记在 01_PROJECT_STATE.md。请你核对最新改动是否符合红线，确认后接管主线并给出下一步行动卡。`,
+        },
+        {
+          title: "③ 子模块验收交付（codexbox 完结 → 交主控审查）",
+          badge: "沙盒编码完结",
+          desc: "让主控只读审查 03_代码与脚本/<子模块> 改动、日志与数值口径后决定是否合入。",
+          cmd: `codexbox 已在 03_代码与脚本/<子模块名>/ 完成编码与自测。请审查该子目录下的代码、测试日志与数值口径是否符合 _control/00_CONTRACT.md，确认合格后再决定是否合入主线并更新 _control/01_PROJECT_STATE.md。`,
+        },
+      ];
+      window._handoverList = handovers;
+      const hg = document.getElementById("handoverGrid");
+      if (hg) {
+        hg.innerHTML = handovers
+          .map(
+            (ho, idx) => `
+            <div class="bento-card" style="display:flex;flex-direction:column;justify-content:space-between;gap:8px;">
+              <div>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:4px;">
+                  <strong style="color:var(--navy);font-size:13px;">${escapeHtml(ho.title)}</strong>
+                  <span class="badge badge-pass" style="font-size:10.5px;">${escapeHtml(ho.badge)}</span>
+                </div>
+                <div style="font-size:12px;color:var(--muted);line-height:1.5;">${escapeHtml(ho.desc)}</div>
+              </div>
+              <button class="btn btn-teal btn-xs" style="align-self:flex-start;" onclick="copyHandoverIdx(${idx})">📋 复制交付指令</button>
+            </div>
+          `
+          )
+          .join("");
+      }
+    }
+
+    function copyHandoverIdx(idx) {
+      const ho = window._handoverList && window._handoverList[idx];
+      if (ho) copyText(ho.cmd, `已复制：${ho.title}`);
+    }
+
+    function copySweetIdx(idx) {
+      const a = window._sweetActions[idx];
+      if (a) copyText(a.cmd, `已复制：${a.label.replace("📋 ", "")}`);
+    }
+
+    function renderSkillTriggerGuide() {
+      const triggers = [
+        { when: "1. 刚有新课题点子，想测值不值得做", who: "VM Claude (Opus 5.5)", skill: "idea-evaluator", cmd: "请先读取 ../../00_全局中枢_Hub/skills/idea-evaluator/SKILL.md，对当前想法做五维评估与致命伤排查。" },
+        { when: "2. 批量读十几篇 PDF / 拆解图与公式", who: "Antigravity (Gemini 4)", skill: "literature-report-ppt", cmd: "请按 literature-report-ppt 规范精读目标 PDF 并输出带页码的《文献事实卡片.md》。" },
+        { when: "3. 核对论文数字 vs 源码 vs JSON 一致性", who: "VM Claude", skill: "source-grounded-method-audit", cmd: "请先读取 ../../00_全局中枢_Hub/skills/source-grounded-method-audit/SKILL.md，逐数核对源码、JSON 与正文。" },
+        { when: "4. 设计显著性检验 / bootstrap / 效应量", who: "VM Claude", skill: "statistical-analysis", cmd: "请先读取 ../../00_全局中枢_Hub/skills/statistical-analysis/SKILL.md，设计检验方案与置信区间。" },
+        { when: "5. 写或精修论文正文（去 AI 腔 / 去防御）", who: "VM Claude", skill: "writing-core + anti-defensive-writing", cmd: "请先读取 ../../00_全局中枢_Hub/skills/writing-core/SKILL.md 与 anti-defensive-writing/SKILL.md，精修本段正文（严禁改 _control 红线）。" },
+        { when: "6. 画顶刊科研数据图 / 投稿前核对引文 DOI", who: "VM Claude", skill: "figures-python / citation-check", cmd: "请先读取 ../../00_全局中枢_Hub/skills/figures-python/SKILL.md（或 citation-check/SKILL.md）执行本轮任务。" },
+        { when: "7. 准备宣称阶段完成 / 制作组会可编辑 PPT", who: "VM Claude / 宿主机 ppt", skill: "verification / academic-ppt-studio", cmd: "请先读取 ../../00_全局中枢_Hub/skills/verification/SKILL.md 做最终实证核验。（做 PPT 直接在终端跑 ppt）" },
+        { when: "8. 写本地/Colab 训练或采样实验代码前", who: "VM Claude", skill: "ml-experiment-hygiene", cmd: "请先读取 ../../00_全局中枢_Hub/skills/ml-experiment-hygiene/SKILL.md，严格落实防泄漏断言、固定种子、断点续跑与 COMPLETE_OK。" },
+        { when: "9. 收到审稿意见写 Rebuttal / 顶刊投稿前打包", who: "VM Claude (Opus 5.5)", skill: "peer-review-rebuttal / submission-package-check", cmd: "请先读取 ../../00_全局中枢_Hub/skills/peer-review-rebuttal/SKILL.md（或 submission-package-check/SKILL.md）逐条执行。" },
+      ];
+      window._skillTriggerList = triggers;
+      document.getElementById("skillTriggerGuide").innerHTML = triggers
+        .map(
+          (t, idx) => `
+          <div class="bento-card" style="cursor:pointer;" onclick="copySkillTrigger(${idx})" title="点击复制召唤口令">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:4px;">
+              <span class="badge badge-info">${escapeHtml(t.who)}</span>
+              <span style="font-size:11px;color:var(--teal-dark);font-weight:700;">📋 复制口令</span>
+            </div>
+            <div class="bento-title">${escapeHtml(t.when)}</div>
+            <div class="bento-desc">调用：<code>${escapeHtml(t.skill)}</code></div>
+          </div>
+        `
+        )
+        .join("");
+    }
+
+    function copySkillTrigger(idx) {
+      const t = window._skillTriggerList && window._skillTriggerList[idx];
+      if (t) copyText(t.cmd, `已复制 [${t.skill}] 召唤口令`);
+    }
+
+    function renderManualAccordion(manualMd) {
+      const sections = manualMd.split(/\n(?=##\s+)/);
+      const html = [];
+      sections.forEach((sec) => {
+        const lines = sec.trim().split("\n");
+        const title = lines[0].replace(/^#+\s*/, "").trim();
+        if (!title) return;
+        const bodyMd = lines.slice(1).join("\n");
+        const openAttr = title.startsWith("2.") ? "open" : "";
+        html.push(`
+          <details class="manual-sec" ${openAttr}>
+            <summary>${escapeHtml(title)}</summary>
+            <div class="manual-inner md">${renderMarkdown(bodyMd)}</div>
+          </details>
+        `);
+      });
+      document.getElementById("manualAccordion").innerHTML = html.join("");
+    }
+
+    function renderSetupWizard() {
+      if (!overviewData || !currentProjectData) return;
+      const p = currentProjectData;
+      const roles = overviewData.roles || [];
+      const roleMap = {};
+      for (const r of roles) roleMap[r.role] = r;
+
+      const advReady = roleMap.advisor && roleMap.advisor.ready;
+      const dsReady = roleMap.redteam && roleMap.redteam.ready;
+      const glmReady = roleMap.glm_heavy && roleMap.glm_heavy.ready;
+      const readySummary = `${advReady ? "🟢 GPT(cc-switch) 已就绪" : "🟡 GPT 待配置"} · ${dsReady ? "🟢 DeepSeek Key 已就绪" : "🟡 DeepSeek Key 待填"} · ${glmReady ? "🟢 GLM Key 已就绪" : "🟡 GLM Key 待填"}`;
+
+      document.getElementById("setupBanner").innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-weight:800;color:var(--navy);">🚀 初次使用配置向导</span>
+          <span style="font-size:12.5px;color:var(--ink);">${readySummary} · 虚拟机内需挂载一次 <code>filesystem</code> MCP</span>
+        </div>
+        <button class="btn btn-teal btn-xs" onclick="switchTab('setup')">查看 4 步配置向导（含一键复制） →</button>
+      `;
+
+      const mcpJson = JSON.stringify(
+        {
+          mcpServers: {
+            filesystem: {
+              command: "npx",
+              args: ["-y", "@modelcontextprotocol/server-filesystem", "/Volumes/My Shared Files/ClaudeShield-Exchange"],
+            },
+          },
+        },
+        null,
+        2
+      );
+
+      const projInst = [
+        `你当前负责的唯一课题路径是：`,
+        p.vm_path,
+        ``,
+        `每次开始对话时，先用 filesystem MCP 读取该目录下的：`,
+        `1) CLAUDE.md`,
+        `2) _control/00_CONTRACT.md`,
+        `3) _control/01_PROJECT_STATE.md`,
+        `4) _control/02_DECISION_LEDGER.md`,
+        `严格遵守其中红线与操作 SOP。禁止主动扫描 99_历史归档_Archive/ 或修改 冻结存档-20261117/。`,
+      ].join("\n");
+
+      const firstPrompt = `你当前负责 ${p.vm_path}。请先读取 CLAUDE.md、_control/00_CONTRACT.md、01_PROJECT_STATE.md 与 02_DECISION_LEDGER.md，向我汇报当前最新进展和前 3 项待办。`;
+
+      const openEnvCmd = `open -e ~/.config/research_hub/.env`;
+      const envPreview = [
+        `# 文件位置（宿主机本地，权限 600，虚拟机不可见）：`,
+        `# ~/.config/research_hub/.env`,
+        ``,
+        `DEEPSEEK_API_KEY=你的DeepSeek官方Key`,
+        `GLM_API_KEY=你的s2api.oonet.icu_GLM密钥`,
+        `# OPENAI_API_KEY 可留空，已自动联动本机 cc-switch (${roleMap.advisor ? roleMap.advisor.model : "gpt-6.2-astra"})`,
+      ].join("\n");
+
+      const aliasCmd = [
+        `# 已自动写入本机 ~/.zshrc 与 Pebrel Profiles，新开 Pebrel 标签即生效：`,
+        `p01          # 直达当前 P01 课题目录`,
+        `hub          # 直达 00_全局中枢_Hub 目录`,
+        `consult all  # 并发呼叫 DS V4.1 Flash + GPT 顾问`,
+        `checkms      # 一键论文/周报断链与去AI腔体检`,
+        `pview _bus/reply.md  # 用 Pebrel GPU 原生渲染阅读回执`,
+        `newproj "P02_名称"   # 一键开新课题`,
+        `hubkeys / hubmodels  # 打开密钥 / 模型配置`,
+        `dash         # 唤起科研总控大屏 (8765)`,
+      ].join("\n");
+
+      const cards = [
+        {
+          step: 1,
+          env: "在 ClaudeShield 虚拟机内执行",
+          title: "配置 Claude Desktop 本地 filesystem MCP",
+          badge: '<span class="badge badge-info">只配一次，永久通用</span>',
+          desc: "打开虚拟机内的 <code>~/Library/Application Support/Claude/claude_desktop_config.json</code>，填入下方配置后<strong>完全重启 Claude Desktop</strong>（输入框下方出现小锤子/工具图标即挂载成功）：",
+          code: mcpJson,
+          actions: [
+            { label: "📋 复制 MCP JSON 配置", text: mcpJson, toast: "已复制 filesystem MCP JSON" },
+            { label: "📋 复制虚拟机打开配置命令", text: 'mkdir -p "$HOME/Library/Application Support/Claude" && open -a TextEdit "$HOME/Library/Application Support/Claude/claude_desktop_config.json" || touch "$HOME/Library/Application Support/Claude/claude_desktop_config.json"', toast: "已复制虚拟机打开命令" },
+          ],
+        },
+        {
+          step: 2,
+          env: "在 ClaudeShield 虚拟机内执行",
+          title: `新建课题 Project「[${p.name.split("_")[0]}] ${p.name.split("_").slice(1).join("_") || p.name}」`,
+          badge: '<span class="badge badge-info">彻底防止多课题串台</span>',
+          desc: "在虚拟机 Claude Desktop 左侧点击 <code>Projects → Create Project</code>，将下方指令粘贴进 <strong>Project Instructions</strong>（未来开 P02 时同理新建一个 Project 即可）：",
+          code: projInst,
+          actions: [
+            { label: "📋 复制 Project 指令", text: projInst, toast: "已复制 Project Instructions" },
+            { label: "📋 复制第一句开聊口令", text: firstPrompt, toast: "已复制第一句开聊口令" },
+          ],
+        },
+        {
+          step: 3,
+          env: "在宿主机 Mac Pebrel 终端执行",
+          title: "填入 DeepSeek & GLM 官方 API Key",
+          badge: dsReady && glmReady ? '<span class="badge badge-pass">🟢 全部密钥就绪</span>' : '<span class="badge badge-warn">🟡 待填入官方 Key</span>',
+          desc: `密钥存放在宿主机 <code>~/.config/research_hub/.env</code>（权限 600，虚拟机看不到）。当前 GPT 顾问已通过 <code>cc-switch</code> 自动就绪（<code>${escapeHtml(roleMap.advisor ? roleMap.advisor.key_source : "cc-switch")}</code>），只需填入 DS 与 GLM：`,
+          code: envPreview,
+          actions: [
+            { label: "📋 复制打开 .env 文件命令", text: openEnvCmd, toast: "已复制：请在宿主机终端粘贴运行打开编辑" },
+            { label: "📋 复制测试预演命令", text: `python3 "$RESEARCH_HUB_ROOT/00_全局中枢_Hub/consult.py" all --dry-run`, toast: "已复制 --dry-run 检测命令" },
+          ],
+        },
+        {
+          step: 4,
+          env: "本机 Pebrel 与宿主机 ~/.zshrc",
+          title: "Pebrel 科研 Profile 与 Zsh 快捷命令",
+          badge: '<span class="badge badge-pass">🟢 本机已配置就绪</span>',
+          desc: "已在 <code>pebrel.luau</code> 注入 3 个科研快速启动项（<code>[科研主线] P01</code> / <code>[科研中枢] Hub</code> / <code>[科研大屏]</code>，保留原有 Windows Profile），并在 <code>~/.zshrc</code> 配好以下短命令（已开终端运行 <code>source ~/.zshrc</code>）：",
+          code: aliasCmd,
+          actions: [
+            { label: "📋 复制 source ~/.zshrc 刷新命令", text: "source ~/.zshrc", toast: "已复制刷新命令" },
+            { label: "📋 复制打开 pebrel.luau 命令", text: 'open -e "$HOME/Library/Application Support/Pebrel/pebrel.luau"', toast: "已复制打开 Pebrel 配置命令" },
+          ],
+        },
+      ];
+
+      window._setupPayloads = [];
+      document.getElementById("setupWizardGrid").innerHTML = cards
+        .map((c) => {
+          const btns = c.actions
+            .map((a) => {
+              const id = window._setupPayloads.push(a) - 1;
+              return `<button class="btn btn-teal btn-xs" onclick="copySetupIdx(${id})">${a.label}</button>`;
+            })
+            .join("");
+          return `
+            <div class="setup-card">
+              <div>
+                <div class="setup-head">
+                  <div style="display:flex;align-items:center;">
+                    <span class="step-circle">${c.step}</span>
+                    <div>
+                      <div style="font-size:11px;color:var(--teal-dark);font-weight:700;">${escapeHtml(c.env)}</div>
+                      <div style="font-weight:700;color:var(--navy);font-size:13.5px;">${escapeHtml(c.title)}</div>
+                    </div>
+                  </div>
+                  ${c.badge}
+                </div>
+                <div class="setup-body">
+                  <p style="margin:0 0 10px;font-size:12.5px;color:var(--ink);">${c.desc}</p>
+                  <div class="cmd-box" style="white-space:pre-wrap;">${escapeHtml(c.code)}</div>
+                </div>
+              </div>
+              <div class="setup-foot">${btns}</div>
+            </div>
+          `;
+        })
+        .join("");
+    }
+
+    function copySetupIdx(idx) {
+      const item = window._setupPayloads[idx];
+      if (item) copyText(item.text, item.toast);
+    }
+
+    function renderFileTree() {
+      if (!currentProjectData) return;
+      const q = (document.getElementById("fileFilter").value || "").trim().toLowerCase();
+      let html = "";
+      for (const sec of currentProjectData.sections) {
+        const filtered = sec.files.filter((f) => !q || f.name.toLowerCase().includes(q) || f.rel_path.toLowerCase().includes(q));
+        if (filtered.length === 0) continue;
+        html += `<div class="tree-group-title">${escapeHtml(sec.label)} (${filtered.length})</div>`;
+        for (const f of filtered) {
+          const sub = f.folder && f.folder !== "." ? `${f.folder} / ` : "";
+          html += `
+            <button class="tree-item" onclick="openDoc('${escapeHtml(f.rel_path)}', 'docViewerBody', this)">
+              <strong>${escapeHtml(f.name)}</strong>
+              <span class="tree-meta">${escapeHtml(sub)}${f.size_kb} KB · ${escapeHtml(f.mtime)}</span>
+            </button>
+          `;
+        }
+      }
+      document.getElementById("fileTreeList").innerHTML = html || '<p style="color:var(--muted);font-size:12px;">没有匹配的文件</p>';
+    }
+
+    async function openDoc(relPath, targetId, btnEl) {
+      if (btnEl) {
+        document.querySelectorAll(".tree-item").forEach((b) => b.classList.remove("active"));
+        btnEl.classList.add("active");
+      }
+      const res = await fetch(`/api/doc?project=${encodeURIComponent(currentProjectData.name)}&path=${encodeURIComponent(relPath)}`);
+      const data = await res.json();
+      if (targetId === "docViewerBody") {
+        document.getElementById("docViewerTitle").textContent = `📄 ${relPath}`;
+        document.getElementById("docRealPath").textContent = data.real_path || "";
+      }
+      document.getElementById(targetId).innerHTML = relPath.endsWith(".md")
+        ? renderMarkdown(data.content)
+        : `<pre><code>${escapeHtml(data.content)}</code></pre>`;
+    }
+
+    async function openSkillDrawer(skillName) {
+      const res = await fetch(`/api/skill?name=${encodeURIComponent(skillName)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const summon = `请先按 ../../00_全局中枢_Hub/skills/SKILL_INDEX.md 读取 ${skillName}/SKILL.md，并严格按其规范执行本轮任务。`;
+      openDrawer(`🛠️ Skill 规范：${skillName}`, renderMarkdown(data.content), "📋 复制召唤口令", () => copyText(summon, `已复制 [${skillName}] 召唤口令`));
+    }
+
+    async function loadOverview() {
+      const res = await fetch("/api/overview");
+      overviewData = await res.json();
+      document.getElementById("topMeta").textContent = `交换区：${overviewData.exchange_root_host} | 刷新：${overviewData.server_time}`;
+      document.getElementById("envFileHint").textContent = `宿主机密钥文件：${overviewData.env_file}`;
+
+      const sel = document.getElementById("projectSelect");
+      const prev = sel.value;
+      sel.innerHTML = "";
+      for (const p of overviewData.projects) {
+        const opt = document.createElement("option");
+        opt.value = p.name;
+        opt.textContent = `${p.name} (${p.ledger_count} 条台账)`;
+        sel.appendChild(opt);
+      }
+      sel.value = prev && overviewData.projects.some((p) => p.name === prev) ? prev : overviewData.active_project;
+
+      renderManualAccordion(overviewData.operation_manual_md);
+      renderSweetSpots();
+      renderSkillTriggerGuide();
+
+      document.getElementById("rolesGrid").innerHTML = overviewData.roles
+        .map((r) => `
+          <div class="role-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <strong style="color:var(--navy);font-size:15px;">${escapeHtml(r.role)}</strong>
+              <span class="badge ${r.ready ? "badge-pass" : "badge-warn"}">${r.ready ? `就绪 (${escapeHtml(r.key_source)})` : "待填 Key"}</span>
+            </div>
+            <div style="font-size:13px;font-weight:700;color:var(--teal-dark);margin-bottom:4px;">模型：<code>${escapeHtml(r.model)}</code></div>
+            <div style="font-size:12px;color:var(--muted);">${escapeHtml(r.description)}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:6px;">协议：${escapeHtml(r.wire_api)} | 端点：${escapeHtml(r.base_url)}</div>
+          </div>
+        `)
+        .join("");
+
+      document.getElementById("skillGrid").innerHTML = overviewData.skills
+        .map(
+          (s) => `
+          <div class="skill-card" onclick="openSkillDrawer('${escapeHtml(s.name)}')">
+            <div>
+              <span class="badge badge-info" style="margin-bottom:6px;">${escapeHtml(s.category)}</span>
+              <div style="font-weight:700;color:var(--navy);font-size:14px;">${escapeHtml(s.name)}</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:4px;">${escapeHtml(s.trigger)}</div>
+            </div>
+            <div style="font-size:11.5px;color:var(--teal-dark);font-weight:600;">点击预览规范与复制召唤口令 →</div>
+          </div>
+        `
+        )
+        .join("");
+
+      await loadProject(sel.value);
+    }
+
+    function renderPebrelCommands() {
+      const projName = currentProjectData ? currentProjectData.name : (overviewData && overviewData.active_project) || "P01_染色质块条件插补";
+      const q = ((document.getElementById("pebrelSearch") && document.getElementById("pebrelSearch").value) || "").trim().toLowerCase();
+
+      const groups = [
+        {
+          tag: "① 课题目录与中枢跳转",
+          title: "快速切目录 / 唤起大屏",
+          badge: "高频导航",
+          items: [
+            { cmd: `cd "$RESEARCH_HUB_ROOT/01_在研课题_Projects/${projName}"`, desc: `切换到当前大屏选中的课题目录（${projName}）` },
+            { cmd: "p <关键词>", desc: "模糊秒切任意课题（例如 p 02 / p nc；newproj 会自动生成 p01/p02/p03...）" },
+            { cmd: "hub", desc: "秒切 00_全局中枢_Hub 全局中枢目录" },
+            { cmd: "dash", desc: "启动并在浏览器打开本科研总控大屏 (127.0.0.1:8765)" },
+            { cmd: "source ~/.zshrc", desc: "刷新当前已打开的 Pebrel 标签页快捷命令" },
+          ],
+        },
+        {
+          tag: "② 跨端专家会诊点火 (consult.py)",
+          title: "DeepSeek / GPT / GLM 单次会诊",
+          badge: "One-Shot",
+          items: [
+            { cmd: `consult all --dry-run --project "${projName}"`, desc: "0 消耗预演：查看发送给谁、读了多少字、走哪个端点与密钥来源" },
+            { cmd: `consult redteam --project "${projName}"`, desc: "只呼叫 DeepSeek (deepseek-flash) 独立红队挑刺（当前不耗 GPT 额度）" },
+            { cmd: `consult advisor --project "${projName}"`, desc: "只呼叫本机 cc-switch GPT 顾问 (gpt-6.2-astra) 深度裁决" },
+            { cmd: `consult all --project "${projName}"`, desc: "双盲并发同时呼叫 DeepSeek 红队 + GPT 首席顾问" },
+            { cmd: `consult glm_heavy --project "${projName}"`, desc: "调用 s2api.oonet.icu GLM-5.3 生成组会周报大纲、讲稿与 PPT 脚本" },
+            { cmd: `consult glm_fast --project "${projName}"`, desc: "调用 s2api.oonet.icu GLM-5.3-Flash 极速中文润色与表格整理" },
+            { cmd: `consult redteam --model deepseek-v4-pro --project "${projName}"`, desc: "临时切换重型模型做一次对比（无需修改 models.toml）" },
+          ],
+        },
+        {
+          tag: "③ 文稿体检 · 新建课题 · 配置管理",
+          title: "科研质量门禁与中枢热插拔",
+          badge: "质检/维护",
+          items: [
+            { cmd: `checkms --project "${projName}"`, desc: "一键检查论文初稿与执行路线图的断链、待核占位符、禁用词与去 AI 腔" },
+            { cmd: `newproj "P03_新课题名称" --goal "一句话描述研究问题"`, desc: "在 01_在研课题_Projects/ 一键创建独立新课题舱并登记索引" },
+            { cmd: "hubkeys", desc: "用默认编辑器打开宿主机密钥 ~/.config/research_hub/.env（权限 600）" },
+            { cmd: "hubmodels", desc: "打开 00_全局中枢_Hub/models.toml 热更新各角色模型 ID 或端点" },
+          ],
+        },
+        {
+          tag: "④ Pebrel 原生视图 & 增强文件命令",
+          title: "GPU 文档渲染 · 配置校验 · 目录树",
+          badge: "Pebrel/Zsh",
+          items: [
+            { cmd: "pview _bus/reply.md", desc: "用 Pebrel 原生 GPU 渲染器阅读任意 Markdown（如 _bus/reply.md）" },
+            { cmd: '"/Applications/Pebrel.app/Contents/MacOS/pebrel" config check', desc: "校验 pebrel.luau 配置文件语法与字段是否合法" },
+            { cmd: 'open -e "$HOME/Library/Application Support/Pebrel/pebrel.luau"', desc: "编辑 Pebrel 侧边栏 Profiles、字体与主题配置" },
+            { cmd: "ls / ll / lt", desc: "使用 eza 图标增强列表（lt 展示 2 级目录树）" },
+            { cmd: "tz-cn / tz-us", desc: "一键切换 macOS 时区（上海 Asia/Shanghai / 洛杉矶 America/Los_Angeles）" },
+          ],
+        },
+      ];
+
+      window._pebrelCmdList = [];
+      const cardsHtml = groups
+        .map((g) => {
+          const matched = g.items.filter((it) => !q || it.cmd.toLowerCase().includes(q) || it.desc.toLowerCase().includes(q) || g.title.toLowerCase().includes(q));
+          if (!matched.length) return "";
+          const rows = matched
+            .map((it) => {
+              const id = window._pebrelCmdList.push(it) - 1;
+              return `
+                <div style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card-inner);margin-bottom:8px;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;">
+                    <code style="font-size:12px;color:var(--navy);word-break:break-all;">${escapeHtml(it.cmd)}</code>
+                    <button class="btn btn-teal btn-xs" style="flex-shrink:0;" onclick="copyPebrelCmd(${id})">📋 复制</button>
+                  </div>
+                  <div style="font-size:12px;color:var(--muted);">${escapeHtml(it.desc)}</div>
+                </div>
+              `;
+            })
+            .join("");
+          return `
+            <div class="setup-card">
+              <div>
+                <div class="setup-head">
+                  <div>
+                    <div style="font-size:11px;color:var(--teal-dark);font-weight:700;">${escapeHtml(g.tag)}</div>
+                    <div style="font-weight:700;color:var(--navy);font-size:13.5px;">${escapeHtml(g.title)}</div>
+                  </div>
+                  <span class="badge badge-info">${escapeHtml(g.badge)}</span>
+                </div>
+                <div class="setup-body">${rows}</div>
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+
+      document.getElementById("pebrelCmdGrid").innerHTML = cardsHtml || '<div class="card"><div class="card-body" style="color:var(--muted);">没有匹配的 Pebrel 命令</div></div>';
+
+      const profiles = [
+        { name: "[科研主线] P01 染色质块条件插补", detail: "自动 cd 到 P01 目录并打印常用指令提示" },
+        { name: "[科研中枢] 00_全局中枢_Hub (总控/开新课题)", detail: "自动 cd 到 Hub 目录，方便执行 newproj / hubmodels / hubkeys" },
+        { name: "[科研大屏] 启动/打开总控大屏 (8765)", detail: "一键运行 打开科研总控大屏.command 并打开 http://127.0.0.1:8765/" },
+        { name: "Local Mac AI CLI (zsh)", detail: "纯净 macOS zsh 登录终端" },
+        { name: "Node B: Windows Codex (WSL2 tmux)", detail: "ssh -F ~/.ssh/config -t win-codex-tmux" },
+        { name: "Node B: Windows PowerShell (Codex)", detail: "ssh -F ~/.ssh/config win-codex" },
+      ];
+      document.getElementById("pebrelProfilesView").innerHTML = `
+        <div class="bento-grid">
+          ${profiles
+            .map(
+              (pf) => `
+              <div class="bento-card" style="cursor:default;">
+                <div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:4px;">${escapeHtml(pf.name)}</div>
+                <div style="font-size:12px;color:var(--muted);">${escapeHtml(pf.detail)}</div>
+              </div>
+            `
+            )
+            .join("")}
+        </div>
+      `;
+    }
+
+    function copyPebrelCmd(idx) {
+      const item = window._pebrelCmdList[idx];
+      if (item) copyText(item.cmd, `已复制命令：${item.cmd.slice(0, 42)}`);
+    }
+
+    function renderEssentialCmds() {
+      const { p, scriptPath, scriptArgs, resultPath, localDir, gpuType, sessionName, resultFile } = getTplVars();
+      const projName = p.name;
+      const projPrefix = projName.includes("_") ? projName.split("_")[0].toLowerCase() : "p <关键词>";
+      const essentials = [
+        { label: `切当前课题 (${projPrefix})`, cmd: projPrefix.startsWith("p") ? projPrefix : `p "${projName}"`, note: `或用 p <关键词> 模糊切任意课题（当前：${projName}）` },
+        { label: "切全局中枢", cmd: "hub", note: "进入 00_全局中枢_Hub" },
+        { label: "0 消耗预演", cmd: `consult all --dry-run --project "${projName}"`, note: "先看上下文长度、模型来源与端点" },
+        { label: "DeepSeek 红队", cmd: `consult redteam --project "${projName}"`, note: "实时流式看思考 (deepseek-flash，不耗 GPT)" },
+        { label: "极深思考+人话", cmd: `consult advisor --effort xhigh --eli5 --project "${projName}"`, note: "--effort 调深度，--eli5 附通俗类比" },
+        { label: "GLM 多轮可编辑 PPT", cmd: `ppt --topic "组会汇报" --project "${projName}"`, note: "调 academic-ppt-studio 增量改 build_pptx.py + 质检" },
+        { label: "本地跑脚本+自通知", cmd: `runnotify python3 "${scriptPath}" ${scriptArgs}`, note: "0 消耗监控本地实验，跑完弹窗并留存 run_manifest" },
+        { label: `Colab CLI 跑 ${gpuType}`, cmd: `runnotify colab run -s ${sessionName} --gpu ${gpuType} --timeout 0 --keep "${scriptPath}" ${scriptArgs}`, note: "参数由上方参数台控制，免网页直连 Colab" },
+        { label: "Colab 拉回结果+释放", cmd: `mkdir -p "${localDir}" && colab download -s ${sessionName} "${resultPath}" "${localDir}/${resultFile}" && colab stop -s ${sessionName}`, note: "拉回产物进本地保存目录并停止 GPU 计费" },
+        { label: "受限 Codex 子模块", cmd: `codexbox "$RESEARCH_HUB_ROOT/01_在研课题_Projects/${projName}/03_代码与脚本/<子模块名>"`, note: "写权限锁死在 03_代码与脚本 子目录内" },
+        { label: "文稿红线体检", cmd: `checkms --project "${projName}"`, note: "查断链 / 待核 / 禁用词 / AI 腔" },
+        { label: "开新课题舱", cmd: 'newproj "P0X_课题名" --goal "<研究目标>"', note: "一键建舱并自动生成 p0X 秒切别名" },
+        { label: "终端指令速查", cmd: "hubhelp", note: "在 Ghostty/Pebrel 内查看全部通用命令与参数" },
+      ];
+      window._essentialCmdList = essentials;
+      document.getElementById("essentialCmdsBar").innerHTML = `
+        <div class="bento-grid">
+          ${essentials
+            .map(
+              (it, idx) => `
+              <div class="bento-card" style="cursor:pointer;" onclick="copyEssentialCmd(${idx})" title="点击一键复制">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:4px;">
+                  <strong style="color:var(--navy);font-size:12.5px;">${escapeHtml(it.label)}</strong>
+                  <span class="badge badge-info" style="font-size:10.5px;">📋 复制</span>
+                </div>
+                <div style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--teal-dark);word-break:break-all;margin-bottom:3px;">${escapeHtml(it.cmd)}</div>
+                <div style="font-size:11.5px;color:var(--muted);">${escapeHtml(it.note)}</div>
+              </div>
+            `
+            )
+            .join("")}
+        </div>
+      `;
+    }
+
+    function copyEssentialCmd(idx) {
+      const item = window._essentialCmdList && window._essentialCmdList[idx];
+      if (item) copyText(item.cmd, `已复制必用指令：${item.cmd.slice(0, 42)}`);
+    }
+
+    function renderGhosttyCommands() {
+      const projName = currentProjectData ? currentProjectData.name : (overviewData && overviewData.active_project) || "P01_染色质块条件插补";
+      const q = ((document.getElementById("ghosttySearch") && document.getElementById("ghosttySearch").value) || "").trim().toLowerCase();
+
+      const groups = [
+        {
+          tag: "① Ghostty 窗口 / 标签 / 分屏快捷键",
+          title: "macOS 原生多窗口与分屏操作",
+          badge: "快捷键",
+          items: [
+            { cmd: "Cmd + N / Cmd + T", desc: "新建 Ghostty 窗口 (new_window) / 新建标签页 (new_tab)" },
+            { cmd: "Cmd + D / Cmd + Shift + D", desc: "向右左右分屏 (new_split:right) / 向下上下分屏 (new_split:down)" },
+            { cmd: "Cmd + Shift + Enter", desc: "放大或还原当前分屏 (toggle_split_zoom)" },
+            { cmd: "Cmd + Opt + 方向键  或  Cmd + [ / ]", desc: "在多个分屏之间切换焦点 (goto_split)" },
+            { cmd: "Cmd + Ctrl + 方向键  /  Cmd + Ctrl + =", desc: "微调分屏尺寸 (resize_split) / 一键等分所有分屏 (equalize_splits)" },
+            { cmd: "Cmd + W / Cmd + Opt + W / Cmd + Shift + W", desc: "关闭当前分屏 / 关闭当前标签页 / 关闭整个窗口" },
+            { cmd: "Cmd + 1..8 / Cmd + 9 / Cmd + Shift + [ / ]", desc: "按编号直达第 1..8 个标签 / 最后一个标签 / 前后切换标签" },
+          ],
+        },
+        {
+          tag: "② Ghostty 搜索 / 滚屏 / 命令面板",
+          title: "长日志排查与配置热重载",
+          badge: "效率神器",
+          items: [
+            { cmd: "Cmd + Shift + P", desc: "打开 Ghostty 内置命令面板 (toggle_command_palette)，可搜索所有操作" },
+            { cmd: "Cmd + F  /  Cmd + G  /  Cmd + Shift + G", desc: "在终端历史中搜索文本 / 跳转下一条 / 跳转上一条 (Esc 退出搜索)" },
+            { cmd: "Cmd + 上/下方向键", desc: "按 Shell 提示符逐条命令跳转 (jump_to_prompt)，长输出翻找极快" },
+            { cmd: "Cmd + K  /  Cmd + Home / End", desc: "清屏 (clear_screen) / 滚到历史顶部 / 滚到底部" },
+            { cmd: "Cmd + ,  /  Cmd + Shift + ,", desc: "打开 ~/.config/ghostty/config / 立即热重载 Ghostty 配置 (reload_config)" },
+            { cmd: "Cmd + + / Cmd + - / Cmd + 0", desc: "放大字号 / 缩小字号 / 重置为默认字号 (13.5)" },
+            { cmd: "Cmd + Ctrl + F  /  Cmd + Enter", desc: "切换 macOS 全屏模式 (toggle_fullscreen)" },
+          ],
+        },
+        {
+          tag: "③ Ghostty CLI 专属工具命令",
+          title: "配置校验 · 主题字库查询 · 启动控制",
+          badge: "ghostty +action",
+          items: [
+            { cmd: "ghostty +validate-config", desc: "校验 ~/.config/ghostty/config 语法与配置项是否完全合法" },
+            { cmd: "ghostty +show-config", desc: "查看当前生效的全部 Ghostty 运行时配置（含默认值）" },
+            { cmd: "ghostty +list-keybinds --default", desc: "列出 Ghostty macOS 全部默认快捷键映射" },
+            { cmd: "ghostty +list-actions", desc: "列出 Ghostty 支持绑定到 keybind 的全部动作名称" },
+            { cmd: "ghostty +list-themes", desc: "预览并列出 Ghostty 内置全部配色主题（当前启用 Nord）" },
+            { cmd: "ghostty +list-fonts", desc: "列出系统可供 Ghostty 使用的等宽字体家族（当前 Menlo）" },
+            { cmd: "ghosttycfg", desc: "快捷打开 ~/.config/ghostty/config 进行编辑（~/.zshrc 别名）" },
+            { cmd: "open -na Ghostty.app", desc: "从终端独立再启动一个新的 Ghostty 窗口实例" },
+          ],
+        },
+        {
+          tag: "④ Ghostty 科研流通用必用命令",
+          title: "~/.zshrc 全系科研别名（开箱即用）",
+          badge: "科研主线",
+          items: [
+            { cmd: "p01  /  p02  /  hub", desc: "秒切 P01 染色质插补 / P02 NC 综述基准 / 00_全局中枢_Hub" },
+            { cmd: `consult all --dry-run --project "${projName}"`, desc: "0 消耗检查上下文大小与端点" },
+            { cmd: `consult redteam --project "${projName}"`, desc: "调用 DeepSeek (deepseek-flash) 独立红队挑刺" },
+            { cmd: `consult advisor --project "${projName}"`, desc: "调用本机 cc-switch GPT 顾问 (gpt-6.2-astra)" },
+            { cmd: `consult glm_heavy --project "${projName}"`, desc: "调用 s2api.oonet.icu GLM-5.3 生成周报与 PPT 脚本" },
+            { cmd: `checkms --project "${projName}"`, desc: "论文/周报断链、禁用词与去 AI 腔体检" },
+            { cmd: "dash  /  hubkeys  /  hubmodels", desc: "打开总控大屏 (8765) / 编辑宿主机密钥 / 编辑热插拔模型" },
+            { cmd: "source ~/.zshrc", desc: "使 ~/.zshrc 的最新别名修改在当前标签页立即生效" },
+          ],
+        },
+      ];
+
+      window._ghosttyCmdList = [];
+      const cardsHtml = groups
+        .map((g) => {
+          const matched = g.items.filter((it) => !q || it.cmd.toLowerCase().includes(q) || it.desc.toLowerCase().includes(q) || g.title.toLowerCase().includes(q));
+          if (!matched.length) return "";
+          const rows = matched
+            .map((it) => {
+              const id = window._ghosttyCmdList.push(it) - 1;
+              return `
+                <div style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card-inner);margin-bottom:8px;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;">
+                    <code style="font-size:12px;color:var(--navy);word-break:break-all;">${escapeHtml(it.cmd)}</code>
+                    <button class="btn btn-teal btn-xs" style="flex-shrink:0;" onclick="copyGhosttyCmd(${id})">📋 复制</button>
+                  </div>
+                  <div style="font-size:12px;color:var(--muted);">${escapeHtml(it.desc)}</div>
+                </div>
+              `;
+            })
+            .join("");
+          return `
+            <div class="setup-card">
+              <div>
+                <div class="setup-head">
+                  <div>
+                    <div style="font-size:11px;color:var(--teal-dark);font-weight:700;">${escapeHtml(g.tag)}</div>
+                    <div style="font-weight:700;color:var(--navy);font-size:13.5px;">${escapeHtml(g.title)}</div>
+                  </div>
+                  <span class="badge badge-info">${escapeHtml(g.badge)}</span>
+                </div>
+                <div class="setup-body">${rows}</div>
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+
+      document.getElementById("ghosttyCmdGrid").innerHTML = cardsHtml || '<div class="card"><div class="card-body" style="color:var(--muted);">没有匹配的 Ghostty 指令</div></div>';
+    }
+
+    function copyGhosttyCmd(idx) {
+      const item = window._ghosttyCmdList[idx];
+      if (item) copyText(item.cmd, `已复制 Ghostty 指令：${item.cmd.slice(0, 42)}`);
+    }
+
+    function renderOrgPage() {
+      const flowSteps = [
+        { step: "Track A-1", title: "立项建舱 (newproj)", desc: "newproj 自动复制模板、生成 _control/ 三文件、登记大屏并同步 ~/.config/research_hub/projects.zsh (p01/p02/p03...)。" },
+        { step: "Track A-2", title: "主控推进 (Claude Sonnet)", desc: "VM Claude 通过本地 Python MCP 读写当前课题，写脚本到 03_代码与脚本/；遇高难冲突主动提醒新开会话切 Opus。" },
+        { step: "Track A-3", title: "实验运行 & 自通知", desc: "本地用 runnotify 跑脚本，Colab 同步用 watchdone 盯落地（0 AI Token）；复杂算法子模块可用 codexbox 限权攻坚。" },
+        { step: "Track A-4", title: "跨端流式会诊 (consult)", desc: "Claude 浓缩 1500 字入 _bus/ask.md；宿主机 consult --effort 支持实时流式看思考、自动折叠写入 _bus/reply.md。" },
+        { step: "Track B", title: "组会可编辑 PPT (ppt)", desc: "独立调用 GLM-5.3 + academic-ppt-studio，仅写入 04_组会与周报_Weekly/，源码迭代 build_pptx.py 并自动过质检。" },
+        { step: "交付门禁", title: "正文体检 (checkms)", desc: "投稿/交稿前运行 checkms 与六维雷达扫描，确保 0 断链、0 待核、0 不宣称违规词。" },
+      ];
+      document.getElementById("orgFlowView").innerHTML = `
+        <div class="bento-grid">
+          ${flowSteps
+            .map(
+              (f) => `
+              <div class="bento-card" style="cursor:default;">
+                <div class="bento-head"><span class="bento-id">${escapeHtml(f.step)}</span></div>
+                <div class="bento-title">${escapeHtml(f.title)}</div>
+                <div class="bento-desc">${escapeHtml(f.desc)}</div>
+              </div>
+            `
+            )
+            .join("")}
+        </div>
+      `;
+
+      const modules = [
+        {
+          title: "1. 中枢调度与模型层 (00_全局中枢_Hub/)",
+          items: [
+            "models.toml：DeepSeek / GPT(cc-switch) / GLM(s2api.oonet.icu) 热插拔配置",
+            "consult.py：实时 SSE 流式思考展示、--effort 档位控制、折叠归档 _bus/reply.md",
+            "new_project.py：一键新建物理隔离课题舱 + 自动生成 p0X 秒切别名",
+            "dashboard/serve.py & index.html：127.0.0.1:8765 科研总控大屏（8 大独立分页）",
+          ],
+        },
+        {
+          title: "2. 自动化工具与沙箱层 (scripts/)",
+          items: [
+            "mcp_filesystem_server.py：零 Node 依赖纯 Python MCP 服务端（保护 冻结存档 只读）",
+            "ppt_studio.py (ppt)：GLM 多轮可编辑 PPT 引擎 + academic-ppt-studio + 质检门禁",
+            "notify_when_done.py (runnotify/watchdone)：0 Token 本地/Colab 实验完成弹窗提醒",
+            "codex_sandbox.py (codexbox)：强制锁定 Codex 仅写 03_代码与脚本/<子模块>/",
+            "check_manuscript.py (checkms) & hub_help.py (hubhelp)：文稿体检与 CLI 速查",
+          ],
+        },
+        {
+          title: "3. 课题隔离舱与公共资产",
+          items: [
+            "P01_染色质块条件插补：36 项实验 A～E 索引、v0.5 协议、只读 冻结存档-20261117",
+            "P02_NC_HiC三维坐标综述基准：已导入 三人AI开工包_附个人看图指南 (64MB)",
+            "skills/：17 个去耦合科研 Skill（含 anti-defensive-writing、academic-ppt-studio、peer-review-rebuttal、ml-experiment-hygiene、submission-package-check）",
+            "plotting/academic_style.py：顶刊色盲友好配色与字体封装",
+          ],
+        },
+      ];
+      document.getElementById("orgModulesView").innerHTML = `
+        <div class="setup-grid">
+          ${modules
+            .map(
+              (m) => `
+              <div class="setup-card">
+                <div class="setup-head"><strong style="color:var(--navy);font-size:13.5px;">${escapeHtml(m.title)}</strong></div>
+                <div class="setup-body" style="font-size:12.5px;line-height:1.65;">
+                  ${m.items.map((x) => `<div>• ${escapeHtml(x)}</div>`).join("")}
+                </div>
+              </div>
+            `
+            )
+            .join("")}
+        </div>
+      `;
+
+      const configs = [
+        { name: "宿主机 API 密钥库 (chmod 600)", path: "~/.config/research_hub/.env", note: "存放 DEEPSEEK_API_KEY / GLM_API_KEY（虚拟机不可见）", copy: "open -e ~/.config/research_hub/.env" },
+        { name: "全局模型热插拔配置", path: "$RESEARCH_HUB_ROOT/00_全局中枢_Hub/models.toml", note: "控制 redteam / advisor / glm_heavy / glm_fast 默认模型与端点", copy: "hubmodels" },
+        { name: "cc-switch 本地供应商库", path: "~/.cc-switch/cc-switch.db", note: "consult.py 自动读取当前激活 Codex 渠道（猫薄荷 / gpt-6.2-astra）", copy: "~/.cc-switch/cc-switch.db" },
+        { name: "动态课题秒切别名", path: "~/.config/research_hub/projects.zsh", note: "newproj 自动生成 p01/p02/... 与 p <关键词> 函数", copy: "cat ~/.config/research_hub/projects.zsh" },
+        { name: "Zsh 主配置文件", path: "~/.zshrc", note: "挂载 consult / ppt / runnotify / watchdone / codexbox / hubhelp 等别名", copy: "open -e ~/.zshrc" },
+        { name: "Ghostty 终端配置文件", path: "~/.config/ghostty/config", note: "Nord 主题、Menlo 13.5、50MB 缓冲、选中复制、Opt->Alt", copy: "ghosttycfg" },
+        { name: "Pebrel 终端配置文件", path: "~/Library/Application Support/Pebrel/pebrel.luau", note: "含 P01 / Hub / 大屏 Profiles 及原有 Windows 远端连接", copy: 'open -e "$HOME/Library/Application Support/Pebrel/pebrel.luau"' },
+        { name: "虚拟机 Claude Desktop MCP 配置", path: "~/Library/Application Support/Claude/claude_desktop_config.json (VM内)", note: "已切换至 /usr/bin/python3 -u mcp_filesystem_server.py；修复副本在 00_全局中枢_Hub/vm_claude_config_repaired.json", copy: "$RESEARCH_HUB_ROOT/在虚拟机内双击_修复Claude配置_v2.command" },
+        { name: "CLI 免 source 直连入口", path: "~/.local/bin/{hubhelp,ppt,codexbox}", note: "位于 PATH 最前，在任何已开终端标签页直接可执行", copy: "ls -la ~/.local/bin" },
+        { name: "科研总控大屏服务与入口", path: "$RESEARCH_HUB_ROOT/00_全局中枢_Hub/dashboard/serve.py", note: "监听 127.0.0.1:8765；桌面双击 打开科研总控大屏.command 也可启动", copy: "http://127.0.0.1:8765/" },
+      ];
+      window._orgConfigCopies = configs;
+      document.getElementById("orgConfigsView").innerHTML = `
+        <div class="setup-grid">
+          ${configs
+            .map(
+              (c, idx) => `
+              <div class="setup-card">
+                <div class="setup-head">
+                  <strong style="color:var(--navy);font-size:13px;">${escapeHtml(c.name)}</strong>
+                  <button class="btn btn-teal btn-xs" onclick="copyOrgCfg(${idx})">📋 复制路径/命令</button>
+                </div>
+                <div class="setup-body" style="font-size:12px;">
+                  <div style="font-family:ui-monospace,Menlo,monospace;color:var(--teal-dark);word-break:break-all;margin-bottom:4px;">${escapeHtml(c.path)}</div>
+                  <div style="color:var(--muted);">${escapeHtml(c.note)}</div>
+                </div>
+              </div>
+            `
+            )
+            .join("")}
+        </div>
+      `;
+    }
+
+    function copyOrgCfg(idx) {
+      const c = window._orgConfigCopies && window._orgConfigCopies[idx];
+      if (c) copyText(c.copy, `已复制：${c.name}`);
+    }
+
+    function renderVisualTelemetry() {
+      const host = document.getElementById("visualTelemetryStrip");
+      if (!host) return;
+      const checks = (currentChecksData && currentChecksData.checks) || [];
+      const total = checks.length || 6;
+      const pass = checks.filter((c) => c.status === "pass").length;
+      const warn = checks.filter((c) => c.status === "warn").length;
+      const fail = checks.filter((c) => c.status === "fail").length;
+      const pct = total ? Math.round((pass / total) * 100) : 0;
+      const r = 38, circ = 2 * Math.PI * r;
+      const offset = circ * (1 - pct / 100);
+      const ringColor = fail > 0 ? "#DC2626" : warn > 0 ? "#D97706" : "#0F766E";
+
+      const roles = (overviewData && overviewData.roles) || [];
+      const roleMap = Object.fromEntries(roles.map((x) => [x.role, x]));
+      const engines = [
+        { name: "Claude", sub: "主控 / VM", ok: true },
+        { name: "GPT", sub: roleMap.advisor ? roleMap.advisor.model : "advisor", ok: !!(roleMap.advisor && roleMap.advisor.ready) },
+        { name: "DeepSeek", sub: roleMap.redteam ? roleMap.redteam.model : "redteam", ok: !!(roleMap.redteam && roleMap.redteam.ready) },
+        { name: "Gemini 4", sub: "Antigravity", ok: true },
+        { name: "GLM", sub: roleMap.glm_heavy ? roleMap.glm_heavy.model : "glm", ok: !!(roleMap.glm_heavy && roleMap.glm_heavy.ready) },
+      ];
+
+      const busArch = (currentProjectData && currentProjectData.bus && currentProjectData.bus.archive_files) || [];
+      const stateTxt = (currentProjectData && currentProjectData.control && currentProjectData.control.state_md) || "";
+      const hasContract = !!((currentProjectData && currentProjectData.control && currentProjectData.control.contract_md) || "").trim();
+      const hasResults = /COMPLETE_OK|PROBE_OK|已跑完|已锁定/i.test(stateTxt);
+      const hasDraft = /初稿|周报|PPT/i.test(stateTxt);
+      const stages = [
+        { label: "立项契约", done: hasContract },
+        { label: "合成/先导", done: /合成|冒烟|smoke|probe/i.test(stateTxt) },
+        { label: "跨端会诊", done: busArch.length > 0 },
+        { label: "核心实验", done: hasResults },
+        { label: "论文/PPT", done: hasDraft },
+      ];
+
+      host.innerHTML = `
+        <div class="card" style="margin:0;">
+          <div class="card-body" style="display:flex;align-items:center;gap:14px;padding:14px;">
+            <svg width="96" height="96" viewBox="0 0 96 96" style="flex-shrink:0;">
+              <circle cx="48" cy="48" r="${r}" fill="none" stroke="var(--border)" stroke-width="9"/>
+              <circle cx="48" cy="48" r="${r}" fill="none" stroke="${ringColor}" stroke-width="9"
+                stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}"
+                stroke-linecap="round" transform="rotate(-90 48 48)"/>
+              <text x="48" y="46" text-anchor="middle" font-size="18" font-weight="800" fill="var(--navy)">${pass}/${total}</text>
+              <text x="48" y="61" text-anchor="middle" font-size="10.5" fill="#64748B">六维体检</text>
+            </svg>
+            <div style="font-size:12px;line-height:1.7;">
+              <div style="font-weight:700;color:var(--navy);margin-bottom:4px;">系统健康度 ${pct}%</div>
+              <div><span class="badge badge-pass">✅ 通过 ${pass}</span></div>
+              <div style="margin-top:3px;"><span class="badge badge-warn">⚠️ 警告 ${warn}</span> <span class="badge badge-fail">❌ 阻断 ${fail}</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin:0;">
+          <div class="card-body" style="padding:14px;">
+            <div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:10px;">🧭 科研阶段流水线（按三件套与会诊实况推算）</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+              ${stages.map((st, i) => `
+                <div style="flex:1;text-align:center;">
+                  <div style="width:28px;height:28px;margin:0 auto 5px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;
+                    background:${st.done ? "#0F766E" : "#E2E8F0"};color:${st.done ? "#fff" : "#64748B"};">${st.done ? "✓" : i + 1}</div>
+                  <div style="font-size:11.5px;font-weight:700;color:${st.done ? "var(--navy)" : "var(--muted)"};">${st.label}</div>
+                </div>
+                ${i < stages.length - 1 ? `<div style="height:3px;flex:0.4;background:${st.done ? "#14B8A6" : "#E2E8F0"};margin-bottom:18px;border-radius:2px;"></div>` : ""}
+              `).join("")}
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin:0;cursor:pointer;" onclick="switchTab('skills')" title="点击进入模型与应急降级矩阵">
+          <div class="card-body" style="padding:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <span style="font-weight:700;color:var(--navy);font-size:13px;">🤖 五引擎状态灯</span>
+              <span style="font-size:11px;color:var(--teal-dark);">点此切模型/应急 →</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">
+              ${engines.map((e) => `
+                <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:7px;background:var(--card-inner);border:1px solid var(--border);font-size:11.5px;">
+                  <span class="dot ${e.ok ? "dot-ok" : "dot-warn"}" style="flex-shrink:0;"></span>
+                  <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                    <strong style="color:var(--navy);">${escapeHtml(e.name)}</strong>
+                    <span style="color:var(--muted);font-size:10.5px;"> ${escapeHtml(e.sub)}</span>
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderBusFlowVisual() {
+      const host = document.getElementById("busFlowVisual");
+      if (!host || !currentProjectData) return;
+      const askChars = (currentProjectData.bus.ask_md || "").length;
+      const replyChars = (currentProjectData.bus.reply_md || "").length;
+      const arch = currentProjectData.bus.archive_files || [];
+      host.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;align-items:center;">
+          <div class="bento-card" style="text-align:center;">
+            <div style="font-size:11px;color:var(--muted);">STEP 1 · 提出问题</div>
+            <div style="font-size:18px;font-weight:800;color:var(--navy);margin:4px 0;">${askChars} 字</div>
+            <div style="font-size:11.5px;color:var(--teal-dark);">_bus/ask.md</div>
+          </div>
+          <div class="bento-card" style="text-align:center;">
+            <div style="font-size:11px;color:var(--muted);">STEP 2 · 外部专家回执</div>
+            <div style="font-size:18px;font-weight:800;color:var(--navy);margin:4px 0;">${replyChars} 字</div>
+            <div style="font-size:11.5px;color:var(--teal-dark);">_bus/reply.md</div>
+          </div>
+          <div class="bento-card" style="text-align:center;">
+            <div style="font-size:11px;color:var(--muted);">STEP 3 · 历史归档轮次</div>
+            <div style="font-size:18px;font-weight:800;color:var(--navy);margin:4px 0;">${arch.length} 轮</div>
+            <div style="font-size:11.5px;color:var(--teal-dark);">_bus/archive/</div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function loadProject(projName) {
+      if (!projName) return;
+      refreshDispatch();
+      const [pjRes, chkRes] = await Promise.all([
+        fetch(`/api/project?name=${encodeURIComponent(projName)}`),
+        fetch(`/api/checks?project=${encodeURIComponent(projName)}`),
+      ]);
+      currentProjectData = await pjRes.json();
+      currentChecksData = await chkRes.json();
+
+      renderHeroCards();
+      renderOrgPage();
+      renderSetupWizard();
+      renderSweetSpots();
+      renderEssentialCmds();
+      renderPebrelCommands();
+      renderGhosttyCommands();
+      renderPipeline();
+      renderTodosAndModules();
+      renderChecksRadar();
+      renderRedlinesAndBento();
+      renderScenario(activeScenarioIdx);
+
+      document.getElementById("askView").innerHTML = renderMarkdown(currentProjectData.bus.ask_md);
+      document.getElementById("replyView").innerHTML = renderMarkdown(currentProjectData.bus.reply_md);
+      loadExpTreeAndGallery(projName);
+
+      const arch = currentProjectData.bus.archive_files || [];
+      document.getElementById("archivePills").innerHTML = arch.length
+        ? arch.map((a) => `<button class="btn btn-light btn-xs" onclick="openDoc('${escapeHtml(a.rel_path)}', 'archiveViewer')">${escapeHtml(a.name)}</button>`).join("")
+        : '<span style="color:var(--muted);font-size:12px;">暂无历史会诊归档。</span>';
+
+      renderFileTree();
+    }
+
+    function toggleTheme() {
+      const dark = document.body.classList.toggle("theme-dark");
+      const btn = document.getElementById("themeToggleBtn");
+      if (btn) btn.textContent = dark ? "☀️ 浅色磨砂" : "🌙 深色极光";
+      localStorage.setItem("rh_theme", dark ? "dark" : "light");
+    }
+    if (localStorage.getItem("rh_theme") === "dark") {
+      document.body.classList.add("theme-dark");
+      const btn = document.getElementById("themeToggleBtn");
+      if (btn) btn.textContent = "☀️ 浅色磨砂";
+    }
+
+    let autoRefreshEnabled = true;
+
+    function toggleAutoRefresh() {
+      autoRefreshEnabled = !autoRefreshEnabled;
+      const btn = document.getElementById("autoRefreshBtn");
+      if (btn) btn.textContent = autoRefreshEnabled ? "⏱️ 自动刷新：开" : "⏱️ 自动刷新：关";
+      showToast(autoRefreshEnabled ? "已开启每 15 秒自动刷新" : "已暂停自动刷新");
+    }
+
+    async function refreshAll() {
+      await loadOverview();
+      showToast("大屏与六维体检数据已刷新");
+    }
+
+    setInterval(() => {
+      if (!autoRefreshEnabled || document.visibilityState !== "visible") return;
+      const tag = document.activeElement ? document.activeElement.tagName : "";
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      loadOverview();
+    }, 15000);
+
+    function escHtml(s) {
+      return String(s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
+    }
+
+    let expTreeState = { proj: "", mode: "rail", nodes: [], chapters: [], runs: [], artifacts: [], selectedId: "" };
+
+    const KIND_STYLE = {
+      pass:   { dot: "var(--ok)",   bg: "var(--ok-bg)",   fg: "var(--ok)",   label: "通过" },
+      freeze: { dot: "var(--blue)", bg: "var(--blue-bg)", fg: "var(--blue)", label: "冻结" },
+      pivot:  { dot: "var(--warn)", bg: "var(--warn-bg)", fg: "var(--warn)", label: "转向" },
+      fail:   { dot: "var(--err)",  bg: "var(--err-bg)",  fg: "var(--err)",  label: "未过" },
+      info:   { dot: "var(--muted)",bg: "var(--tint)",    fg: "var(--muted)",label: "记录" },
+    };
+
+    function svgStatusShape(shape, cx, cy, color, selected) {
+      const r = selected ? 5 : 4.2;
+      const ring = selected ? `<circle cx="${cx}" cy="${cy}" r="8.5" fill="${color}" fill-opacity="0.18"/>` : "";
+      if (shape === "root") {
+        return `${ring}<circle cx="${cx}" cy="${cy}" r="6.5" fill="none" stroke="${color}" stroke-width="1.4"/><circle cx="${cx}" cy="${cy}" r="3.2" fill="${color}"/>`;
+      }
+      if (shape === "failed") {
+        const d = r * 1.25;
+        return `${ring}<path d="M${cx} ${cy - d}L${cx + d} ${cy}L${cx} ${cy + d}L${cx - d} ${cy}Z" fill="${color}"/>`;
+      }
+      if (shape === "stopped") {
+        return `${ring}<circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--card)" stroke="${color}" stroke-width="1.6"/><line x1="${cx - 2.6}" y1="${cy + 2.6}" x2="${cx + 2.6}" y2="${cy - 2.6}" stroke="${color}" stroke-width="1.5"/>`;
+      }
+      if (shape === "running") {
+        return `${ring}<circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--card)" stroke="${color}" stroke-width="1.6"/><path d="M${cx} ${cy - r}A${r} ${r} 0 0 1 ${cx} ${cy + r}Z" fill="${color}"/>`;
+      }
+      if (shape === "pending") {
+        return `${ring}<circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--card)" stroke="${color}" stroke-width="1.5" stroke-dasharray="2 2"/>`;
+      }
+      return `${ring}<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}"/>`;
+    }
+
+    async function loadExpTreeAndGallery(projName) {
+      try {
+        const [decRes, expRes, artRes] = await Promise.all([
+          fetch(`/api/decisions?project=${encodeURIComponent(projName)}`),
+          fetch(`/api/experiments?project=${encodeURIComponent(projName)}&limit=80`),
+          fetch(`/api/artifacts?project=${encodeURIComponent(projName)}`),
+        ]);
+        const decData = await decRes.json();
+        const expData = await expRes.json();
+        const artData = await artRes.json();
+        expTreeState.proj = projName;
+        expTreeState.nodes = decData.nodes || [];
+        expTreeState.chapters = decData.chapters || [];
+        expTreeState.runs = expData.runs || [];
+        expTreeState.artifacts = artData.items || [];
+
+        document.getElementById("treeModeBtn-runs").textContent = `⚡ 运行库 (${expTreeState.runs.length})`;
+        document.getElementById("treeModeBtn-arts").textContent = `🖼️ 产物库 (${expTreeState.artifacts.length})`;
+
+        if (expTreeState.nodes.length) {
+          expTreeState.selectedId = expTreeState.nodes[expTreeState.nodes.length - 1].id;
+        }
+        renderExpTreeMain();
+        if (expTreeState.selectedId) {
+          selectDecisionNode(expTreeState.selectedId);
+        }
+      } catch (e) {
+        console.warn("loadExpTreeAndGallery error:", e);
+      }
+    }
+
+    function switchExpTreeMode(mode) {
+      expTreeState.mode = mode;
+      ["rail", "swim", "dag", "runs", "arts"].forEach((m) => {
+        const btn = document.getElementById(`treeModeBtn-${m}`);
+        if (btn) btn.classList.toggle("active", m === mode);
+      });
+      renderExpTreeMain();
+    }
+
+    function renderExpTreeMain() {
+      const box = document.getElementById("expTreeLeftList");
+      const q = (document.getElementById("expTreeSearch")?.value || "").trim().toLowerCase();
+      const mode = expTreeState.mode;
+      const nodes = expTreeState.nodes.filter((n) => !q || (n.id + " " + n.title + " " + (n.headline || "") + " " + n.detail).toLowerCase().includes(q));
+
+      if (mode === "rail") {
+        document.getElementById("expTreeCountHint").textContent = `${nodes.length} 节点 · 主干直行 / 旁支借道`;
+        if (!nodes.length) {
+          box.innerHTML = `<div style="color:var(--muted);padding:20px;">无匹配节点</div>`;
+          return;
+        }
+        const ROW_H = 44;
+        const laneX = (ln) => 20 + (ln || 0) * 16;
+        const maxLane = Math.max(0, ...nodes.map((n) => n.lane || 0));
+        const railW = 28 + maxLane * 16;
+        const totalH = nodes.length * ROW_H;
+
+        const rowIndexById = {};
+        nodes.forEach((n, i) => { rowIndexById[n.id] = i; });
+
+        // 生成 OpenResearch 风格 SVG 分叉轨道与节点形状
+        let pathsSvg = "";
+        let shapesSvg = "";
+        nodes.forEach((n, idx) => {
+          const cy = idx * ROW_H + ROW_H / 2;
+          const cx = laneX(n.lane || 0);
+          const st = KIND_STYLE[n.kind] || KIND_STYLE.info;
+          if (n.parent && rowIndexById[n.parent] !== undefined) {
+            const pIdx = rowIndexById[n.parent];
+            const pNode = nodes[pIdx];
+            const px = laneX(pNode.lane || 0);
+            const py = pIdx * ROW_H + ROW_H / 2;
+            if (px === cx) {
+              pathsSvg += `<path d="M${px} ${py + 6}V${cy - 6}" fill="none" stroke="var(--rail-ink)" stroke-opacity="0.45" stroke-width="1.6"/>`;
+            } else {
+              const bend = cy - 14;
+              const dir = cx > px ? 1 : -1;
+              pathsSvg += `<path d="M${px} ${py + 6}V${bend}Q${px} ${bend + 6} ${px + 6 * dir} ${bend + 6}H${cx - 6 * dir}Q${cx} ${bend + 6} ${cx} ${cy - 6}" fill="none" stroke="var(--rail-ink)" stroke-opacity="0.45" stroke-width="1.6"/>`;
+            }
+          }
+          shapesSvg += svgStatusShape(n.shape || "done", cx, cy, st.dot, expTreeState.selectedId === n.id);
+        });
+
+        const rowsHtml = nodes.map((n) => {
+          const st = KIND_STYLE[n.kind] || KIND_STYLE.info;
+          const active = expTreeState.selectedId === n.id;
+          const hl = n.headline
+            ? `<span style="padding:2px 8px;border-radius:6px;font-size:11.5px;font-weight:600;background:${st.bg};color:${st.fg};white-space:nowrap;">${escHtml(n.headline)}</span>`
+            : `<span style="font-size:11.5px;color:var(--muted);">${escHtml(n.date)}</span>`;
+          const fcnt = (n.files || []).length;
+          return `
+            <div onclick="selectDecisionNode('${escHtml(n.id)}')" style="height:${ROW_H}px;padding-left:${railW + 8}px;padding-right:14px;display:grid;grid-template-columns:68px minmax(0,1fr) auto 46px;align-items:center;gap:10px;border-bottom:1px solid var(--border);cursor:pointer;background:${active ? "var(--teal-bg)" : "transparent"};">
+              <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;font-weight:700;color:var(--navy);">${escHtml(n.id)}</span>
+              <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px;font-weight:${active ? "700" : "500"};color:var(--ink);" title="${escHtml(n.title)}">${escHtml(n.title)}</div>
+              <div>${hl}</div>
+              <span style="font-size:11.5px;color:var(--muted);text-align:right;">${fcnt ? "📎 " + fcnt : ""}</span>
+            </div>`;
+        }).join("");
+
+        box.innerHTML = `
+          <div style="position:relative;">
+            <svg width="${railW}" height="${totalH}" style="position:absolute;left:0;top:0;pointer-events:none;">
+              ${pathsSvg}
+              ${shapesSvg}
+            </svg>
+            ${rowsHtml}
+          </div>`;
+        return;
+      }
+
+      if (mode === "swim") {
+        const chs = expTreeState.chapters || [];
+        document.getElementById("expTreeCountHint").textContent = `${chs.length} 个研究阶段章节 · 左表对比 / 右图直览`;
+        box.innerHTML = `<div style="padding:14px;display:flex;flex-direction:column;gap:16px;">` + chs.map((ch) => {
+          const chNodes = (ch.nodes || []).filter((n) => !q || (n.id + " " + n.title + " " + (n.headline || "")).toLowerCase().includes(q));
+          if (!chNodes.length) return "";
+          const figUrl = ch.hero_figure ? `/api/artifact_raw?project=${encodeURIComponent(expTreeState.proj)}&path=${encodeURIComponent(ch.hero_figure)}` : "";
+          const rows = chNodes.map((n) => {
+            const st = KIND_STYLE[n.kind] || KIND_STYLE.info;
+            const active = expTreeState.selectedId === n.id;
+            return `
+              <tr onclick="selectDecisionNode('${escHtml(n.id)}')" style="cursor:pointer;border-bottom:1px solid var(--border);background:${active ? "var(--teal-bg)" : "transparent"};">
+                <td style="padding:7px 8px;white-space:nowrap;font-family:ui-monospace,monospace;font-weight:700;font-size:12px;color:var(--navy);">
+                  <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${st.dot};margin-right:6px;"></span>${escHtml(n.id)}
+                </td>
+                <td style="padding:7px 8px;font-size:12.5px;color:var(--ink);">${escHtml(n.title)}</td>
+                <td style="padding:7px 8px;white-space:nowrap;text-align:right;">
+                  <span style="padding:2px 7px;border-radius:6px;font-size:11px;font-weight:600;background:${st.bg};color:${st.fg};">${escHtml(n.headline || st.label)}</span>
+                </td>
+              </tr>`;
+          }).join("");
+
+          return `
+            <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--card-inner);">
+              <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:var(--tint);">
+                <div style="font-weight:700;font-size:13.5px;color:var(--navy);">${escHtml(ch.title)}</div>
+                <div style="font-size:12px;color:var(--teal-dark);font-weight:600;">${escHtml(ch.subtitle)}</div>
+              </div>
+              <div style="display:grid;grid-template-columns:${figUrl ? "1.15fr 0.85fr" : "1fr"};gap:12px;padding:12px;align-items:start;">
+                <div style="overflow-x:auto;background:var(--card);border:1px solid var(--border);border-radius:8px;">
+                  <table style="width:100%;border-collapse:collapse;">${rows}</table>
+                </div>
+                ${figUrl ? `
+                  <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+                    <div style="font-size:11.5px;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between;">
+                      <span>🖼️ 阶段核心结果图</span>
+                      <code>${escHtml(ch.hero_figure.split("/").pop())}</code>
+                    </div>
+                    <img src="${figUrl}" style="max-width:100%;max-height:280px;border-radius:6px;cursor:pointer;" onclick="selectArtifactNode('${encodeURIComponent(ch.hero_figure)}','.png')" title="点击在右侧放大检视" />
+                  </div>` : ""}
+              </div>
+            </div>`;
+        }).join("") + `</div>`;
+        return;
+      }
+
+      if (mode === "dag") {
+        const chs = expTreeState.chapters || [];
+        document.getElementById("expTreeCountHint").textContent = `2D 阶段拓扑流 · 点击任意节点卡片查看证据`;
+        box.innerHTML = `
+          <div style="padding:16px;overflow-x:auto;">
+            <div style="display:flex;gap:18px;align-items:stretch;min-width:760px;">
+              ${chs.map((ch, cIdx) => {
+                const cNodes = (ch.nodes || []).filter((n) => !q || (n.id + " " + n.title + " " + (n.headline || "")).toLowerCase().includes(q));
+                return `
+                  <div style="flex:1;min-width:210px;display:flex;flex-direction:column;gap:8px;background:var(--card-inner);border:1px solid var(--border);border-radius:10px;padding:12px;position:relative;">
+                    <div style="font-size:12.5px;font-weight:800;color:var(--navy);padding-bottom:8px;border-bottom:2px solid var(--teal);margin-bottom:4px;">
+                      ${escHtml(ch.title)}
+                    </div>
+                    ${cNodes.map((n) => {
+                      const st = KIND_STYLE[n.kind] || KIND_STYLE.info;
+                      const active = expTreeState.selectedId === n.id;
+                      return `
+                        <div onclick="selectDecisionNode('${escHtml(n.id)}')" style="cursor:pointer;padding:9px 10px;border-radius:8px;background:var(--card);border:1.5px solid ${active ? "var(--teal)" : "var(--border)"};border-left:4px solid ${st.dot};box-shadow:var(--shadow);">
+                          <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;">
+                            <span style="font-family:ui-monospace,monospace;font-weight:700;font-size:11.5px;color:var(--navy);">${escHtml(n.id)}</span>
+                            ${n.parent ? `<span style="font-size:10.5px;color:var(--muted);">← ${escHtml(n.parent)}</span>` : ""}
+                          </div>
+                          <div style="font-size:12px;color:var(--ink);margin-top:4px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${escHtml(n.title)}</div>
+                          ${n.headline ? `<div style="margin-top:6px;"><span style="padding:1px 6px;border-radius:5px;font-size:10.5px;font-weight:600;background:${st.bg};color:${st.fg};">${escHtml(n.headline)}</span></div>` : ""}
+                        </div>`;
+                    }).join("")}
+                  </div>
+                  ${cIdx < chs.length - 1 ? `<div style="display:flex;align-items:center;color:var(--teal);font-weight:800;font-size:18px;">→</div>` : ""}`;
+              }).join("")}
+            </div>
+          </div>`;
+        return;
+      }
+
+      if (mode === "runs") {
+        const runs = expTreeState.runs.filter((r) => !q || (r.job_id + " " + r.action + " " + r.summary + " " + r.script_path).toLowerCase().includes(q));
+        document.getElementById("expTreeCountHint").textContent = `${runs.length} 条 SQLite 运行记录`;
+        box.innerHTML = `<div style="padding:12px;">` + (runs.length
+          ? runs.map((r, i) => {
+              const ok = r.status === "SUCCESS";
+              const active = expTreeState.selectedId === `run:${r.id}`;
+              return `
+                <div onclick="selectRunNode(${i})" style="cursor:pointer;padding:9px 12px;margin-bottom:7px;border-radius:8px;border:1px solid ${active ? "var(--teal)" : "var(--border)"};background:${active ? "var(--teal-bg)" : "var(--card-inner)"};border-left:3px solid ${ok ? "var(--ok)" : "var(--err)"};display:flex;justify-content:space-between;align-items:center;gap:10px;">
+                  <div>
+                    <div style="font-weight:700;font-size:12.5px;color:var(--navy);">${escHtml(r.job_id)} <code style="font-weight:400;margin-left:6px;color:var(--teal-dark);">${escHtml(r.action)}</code></div>
+                    <div style="font-size:11.5px;color:var(--muted);margin-top:2px;">${escHtml(r.started_at)} · ${escHtml((r.summary || "").slice(0, 80))}</div>
+                  </div>
+                  <span style="padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;background:${ok ? "var(--ok-bg)" : "var(--err-bg)"};color:${ok ? "var(--ok)" : "var(--err)"};white-space:nowrap;">${escHtml(r.status)} · ${r.duration_sec ?? 0}s</span>
+                </div>`;
+            }).join("")
+          : `<div style="color:var(--muted);padding:12px;">暂无匹配的运行记录</div>`) + `</div>`;
+        return;
+      }
+
+      const arts = expTreeState.artifacts.filter((a) => !q || a.rel_path.toLowerCase().includes(q));
+      document.getElementById("expTreeCountHint").textContent = `${arts.length} 份图表与数据表`;
+      box.innerHTML = `<div style="padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;">` + (arts.length
+        ? arts.map((a) => {
+            const active = expTreeState.selectedId === `art:${a.rel_path}`;
+            const icon = [".png", ".jpg", ".jpeg", ".svg"].includes(a.ext) ? "🖼️" : a.ext === ".pdf" ? "📄" : "📊";
+            return `
+              <div onclick="selectArtifactNode('${encodeURIComponent(a.rel_path)}','${escHtml(a.ext)}')" style="cursor:pointer;padding:8px 10px;border-radius:8px;border:1px solid ${active ? "var(--teal)" : "var(--border)"};background:${active ? "var(--teal-bg)" : "var(--card-inner)"};">
+                <div style="font-size:12.5px;font-weight:600;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${icon} ${escHtml(a.name)}</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:3px;display:flex;justify-content:space-between;">
+                  <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(a.rel_path.split("/").slice(0, -1).join("/"))}</span>
+                  <span style="flex-shrink:0;margin-left:6px;">${a.size_kb} KB</span>
+                </div>
+              </div>`;
+          }).join("")
+        : `<div style="color:var(--muted);padding:12px;">暂无匹配的图表或结果表</div>`) + `</div>`;
+    }
+
+    function selectDecisionNode(did) {
+      const node = expTreeState.nodes.find((n) => n.id === did);
+      if (!node) return;
+      expTreeState.selectedId = did;
+      renderExpTreeMain();
+
+      const st = KIND_STYLE[node.kind] || KIND_STYLE.info;
+      document.getElementById("expInspectorTitle").innerHTML = `${escHtml(node.id)} · ${escHtml(node.title)}`;
+      document.getElementById("expInspectorMeta").innerHTML = `${escHtml(node.date)} · <span style="padding:2px 8px;border-radius:99px;background:${st.bg};color:${st.fg};font-weight:700;">${escHtml(node.headline || st.label)}</span>`;
+
+      const parentBtn = node.parent
+        ? `<button class="btn btn-light btn-xs" onclick="selectDecisionNode('${escHtml(node.parent)}')">← 父基线 ${escHtml(node.parent)}</button>`
+        : `<span style="font-size:11.5px;color:var(--muted);">◎ 根节点</span>`;
+      const childBtns = (node.children || []).map((cid) =>
+        `<button class="btn btn-light btn-xs" onclick="selectDecisionNode('${escHtml(cid)}')">→ ${escHtml(cid)}</button>`
+      ).join(" ");
+
+      const matchedArts = expTreeState.artifacts.filter((a) =>
+        (node.files || []).some((f) => {
+          const clean = f.replace(/\/+$/, "").split("/").pop();
+          return clean && (a.rel_path.includes(f.replace(/\/+$/, "")) || a.name === clean);
+        })
+      );
+
+      const filePills = (node.files || []).map((f) =>
+        `<code style="padding:3px 7px;border-radius:6px;background:var(--tint);border:1px solid var(--border);font-size:11.5px;color:var(--teal-dark);">${escHtml(f)}</code>`
+      ).join(" ");
+
+      const artButtons = matchedArts.map((a) =>
+        `<button class="btn btn-light btn-xs" onclick="previewArtifactInline('${encodeURIComponent(expTreeState.proj)}','${encodeURIComponent(a.rel_path)}','${escHtml(a.ext)}')">🖼️ 预览 ${escHtml(a.name)}</button>`
+      ).join(" ");
+
+      const formattedDetail = escHtml(node.detail || "（无详细说明）")
+        .replace(/`([^`]+)`/g, `<code style="background:var(--tint);border:1px solid var(--border);padding:1px 5px;border-radius:4px;color:var(--teal-dark);">$1</code>`)
+        .replace(/(①|②|③|④|⑤|⑥|⑦|⑧)/g, `<br><strong>$1</strong>`);
+
+      document.getElementById("expInspectorBody").innerHTML = `
+        <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border);margin-bottom:12px;">
+          <span style="font-size:11.5px;color:var(--muted);font-weight:700;">谱系：</span>
+          ${parentBtn}
+          ${childBtns}
+        </div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:6px;">📋 实验依据、指标与冻结边界</div>
+          <div style="font-size:13px;line-height:1.68;background:var(--card-inner);padding:12px;border-radius:8px;border:1px solid var(--border);color:var(--ink);">${formattedDetail}</div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <div style="font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:6px;">📎 关联文件与产物</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">${filePills || '<span style="font-size:12px;color:var(--muted);">无</span>'}</div>
+          ${artButtons ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">${artButtons}</div>` : ""}
+        </div>
+        <div id="inlineArtifactBox"></div>
+      `;
+      if (matchedArts.length && [".png", ".jpg", ".jpeg", ".svg"].includes(matchedArts[0].ext)) {
+        previewArtifactInline(encodeURIComponent(expTreeState.proj), encodeURIComponent(matchedArts[0].rel_path), matchedArts[0].ext);
+      }
+    }
+
+    function selectRunNode(idx) {
+      const r = expTreeState.runs[idx];
+      if (!r) return;
+      expTreeState.selectedId = `run:${r.id}`;
+      renderExpTreeMain();
+      const ok = r.status === "SUCCESS";
+      document.getElementById("expInspectorTitle").innerHTML = `⚡ 运行记录：${escHtml(r.job_id)}`;
+      document.getElementById("expInspectorMeta").innerHTML = `${escHtml(r.started_at)} · 耗时 ${r.duration_sec ?? 0}s · Git <code>${escHtml(r.git_sha || "-")}</code>`;
+      document.getElementById("expInspectorBody").innerHTML = `
+        <div style="margin-bottom:12px;font-size:12.5px;">
+          <strong>动作：</strong><code>${escHtml(r.action)}</code> &nbsp;|&nbsp;
+          <strong>状态：</strong><span style="font-weight:700;color:${ok ? "var(--ok)" : "var(--err)"};">${escHtml(r.status)}</span>
+          ${r.script_path ? `<div style="margin-top:4px;"><strong>目标：</strong><code>${escHtml(r.script_path)}</code></div>` : ""}
+        </div>
+        <div style="margin-bottom:12px;">
+          <div style="font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:4px;">参数 & 解析指标</div>
+          <pre style="background:var(--card-inner);border:1px solid var(--border);color:var(--ink);padding:10px;border-radius:8px;font-size:11.5px;overflow-x:auto;">${escHtml(JSON.stringify({ params: r.params, metrics: r.metrics }, null, 2))}</pre>
+        </div>
+        <div>
+          <div style="font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:4px;">执行回执摘要</div>
+          <div style="background:var(--card-inner);padding:12px;border-radius:8px;border:1px solid var(--border);font-size:12.5px;line-height:1.6;color:var(--ink);">${escHtml(r.summary)}</div>
+        </div>
+      `;
+    }
+
+    function selectArtifactNode(encPath, ext) {
+      const rel = decodeURIComponent(encPath);
+      expTreeState.selectedId = `art:${rel}`;
+      renderExpTreeMain();
+      document.getElementById("expInspectorTitle").innerHTML = `🖼️ ${escHtml(rel.split("/").pop())}`;
+      document.getElementById("expInspectorMeta").innerHTML = `<code>${escHtml(rel)}</code>`;
+      document.getElementById("expInspectorBody").innerHTML = `<div id="inlineArtifactBox"></div>`;
+      previewArtifactInline(encodeURIComponent(expTreeState.proj), encPath, ext);
+    }
+
+    async function previewArtifactInline(encProj, encPath, ext) {
+      const box = document.getElementById("inlineArtifactBox");
+      if (!box) return;
+      const url = `/api/artifact_raw?project=${encProj}&path=${encPath}`;
+      const rel = decodeURIComponent(encPath);
+      if ([".png", ".jpg", ".jpeg", ".svg"].includes(ext)) {
+        box.innerHTML = `<div style="font-size:11.5px;color:var(--muted);margin-bottom:6px;"><code>${escHtml(rel)}</code></div><img src="${url}" style="max-width:100%;border-radius:8px;border:1px solid var(--border);background:#fff;" />`;
+      } else if (ext === ".pdf") {
+        box.innerHTML = `<div style="font-size:11.5px;color:var(--muted);margin-bottom:6px;"><code>${escHtml(rel)}</code> · <a href="${url}" target="_blank" style="color:var(--teal-dark);">新窗口打开 PDF</a></div><iframe src="${url}" style="width:100%;height:520px;border:1px solid var(--border);border-radius:8px;"></iframe>`;
+      } else {
+        const res = await fetch(url);
+        const data = await res.json();
+        const sep = ext === ".csv" ? "," : "\t";
+        const rows = (data.lines || []).slice(0, 50).map((ln) => ln.split(sep));
+        const htmlRows = rows.map((cols, idx) =>
+          `<tr style="border-bottom:1px solid var(--border);${idx === 0 ? "font-weight:700;background:var(--tint);" : ""}">${cols.map((c) => `<td style="padding:5px 8px;white-space:nowrap;color:var(--ink);">${escHtml(c)}</td>`).join("")}</tr>`
+        ).join("");
+        box.innerHTML = `<div style="font-size:11.5px;color:var(--muted);margin-bottom:6px;"><code>${escHtml(rel)}</code>（前 ${rows.length} 行）</div><div style="overflow-x:auto;border:1px solid var(--border);border-radius:8px;"><table style="border-collapse:collapse;font-size:11.5px;width:100%;">${htmlRows}</table></div>`;
+      }
+    }
+
+    function initCollapsibleCards() {
+      document.querySelectorAll(".card").forEach((card) => {
+        const head = card.querySelector(":scope > .card-head");
+        const body = card.querySelector(":scope > .card-body");
+        if (!head || !body || head.querySelector(".card-collapse-btn")) return;
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "card-collapse-btn";
+        btn.textContent = card.classList.contains("collapsed") ? "▸ 展开" : "▾ 折叠";
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          const collapsed = card.classList.toggle("collapsed");
+          btn.textContent = collapsed ? "▸ 展开" : "▾ 折叠";
+        };
+        head.appendChild(btn);
+      });
+    }
+
+    document.getElementById("projectSelect").addEventListener("change", (e) => loadProject(e.target.value));
+    initCollapsibleCards();
+    loadOverview();
+  </script>
+</body>
+</html>
