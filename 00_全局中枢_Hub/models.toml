@@ -58,7 +58,7 @@ api_key_env = "OPENAI_API_KEY"
 # "auto" 表示自动使用本机 cc-switch 当前激活的 Codex 模型（如 gpt-6.2-astra）；
 # 也可直接填写 "gpt-6.1-sol" / "gpt-5.6-high" / "gpt-5.5-pro" / "gpt-5.3-codex-high" 等强制指定：
 model = "auto"
-reasoning_effort = "ultra"
+reasoning_effort = "max"
 temperature = 0.2
 system_prompt = """
 你是本课题的首席科学顾问（Chief Scientific Advisor）。你没有直接修改项目源码和台账的权限，

@@ -428,7 +428,7 @@ def resolve_role_runtime(
 
 
 def _candidate_endpoints(base_url: str, wire_api: str) -> List[str]:
-    """Generate ordered endpoint URLs, preferring /v1 when given a bare domain."""
+    """Generate ordered endpoint URLs, preferring /responses for Codex relays and /v1 for chat."""
     clean = base_url.rstrip("/")
     suffix = "/responses" if wire_api == "responses" else "/chat/completions"
     if clean.endswith(suffix):
@@ -437,6 +437,8 @@ def _candidate_endpoints(base_url: str, wire_api: str) -> List[str]:
         return [clean + suffix]
     parsed_path = urllib.parse.urlsplit(clean).path.rstrip("/")
     if not parsed_path:
+        if wire_api == "responses":
+            return [clean + suffix, clean + "/v1" + suffix]
         return [clean + "/v1" + suffix, clean + suffix]
     return [clean + suffix, clean + "/v1" + suffix]
 
@@ -551,12 +553,13 @@ def _build_request_body(runtime: Dict[str, Any], user_prompt: str, stream: bool,
         body: Dict[str, Any] = {
             "model": runtime["model"],
             "instructions": runtime["system_prompt"],
-            "input": user_prompt,
+            "input": [{"role": "user", "content": [{"type": "input_text", "text": user_prompt}]}],
             "store": False,
-            "stream": stream,
+            "stream": True,
         }
         if include_effort and effort not in ("default", "off"):
-            body["reasoning"] = {"effort": effort}
+            wire_effort = "max" if effort == "ultra" else effort
+            body["reasoning"] = {"effort": wire_effort}
         return body
 
     body = {
@@ -780,7 +783,7 @@ def call_role_api(runtime: Dict[str, Any], user_prompt: str, stream: bool = True
                 }
             except urllib.error.HTTPError as e:
                 err_body = e.read().decode("utf-8", errors="replace")[:400]
-                if e.code == 404 and idx + 1 < len(urls):
+                if e.code in (404, 502, 503, 504) and idx + 1 < len(urls):
                     last_err = e
                     continue
                 if e.code == 400 and attempt < 2:
@@ -789,10 +792,16 @@ def call_role_api(runtime: Dict[str, Any], user_prompt: str, stream: bool = True
                     if include_stream_opts and "stream_options" in lower_err:
                         include_stream_opts = False
                         retried = True
-                    elif include_effort and any(k in lower_err for k in ("reasoning_effort", "thinking", "unsupported", "unknown")):
-                        include_effort = False
-                        retried = True
-                        print(f"⚠️ [{runtime['role']}] 该接口不支持自定义思考参数，自动降回模型默认档位重试...", flush=True)
+                    elif include_effort and any(k in lower_err for k in ("reasoning_effort", "reasoning.effort", "effort", "thinking", "unsupported", "unknown", "invalid")):
+                        cur_eff = str(runtime.get("reasoning_effort") or "").lower()
+                        if cur_eff in ("ultra", "max"):
+                            runtime["reasoning_effort"] = "xhigh"
+                            retried = True
+                            print(f"⚠️ [{runtime['role']}] 接口不支持 {cur_eff} 档位，自动平滑降级至 xhigh 重试...", flush=True)
+                        else:
+                            include_effort = False
+                            retried = True
+                            print(f"⚠️ [{runtime['role']}] 该接口不支持自定义思考参数，自动降回模型默认档位重试...", flush=True)
                     if retried:
                         last_err = e
                         break
