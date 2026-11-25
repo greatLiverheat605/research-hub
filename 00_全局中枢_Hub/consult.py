@@ -903,8 +903,8 @@ def main() -> int:
     parser.add_argument("--model", help="临时覆盖 models.toml 中的模型名（例如 --model deepseek-v4-pro）")
     parser.add_argument(
         "--effort",
-        choices=["off", "low", "medium", "high", "xhigh"],
-        help="临时指定思考档位：off(关闭思考) | low | medium | high | xhigh",
+        choices=["off", "low", "medium", "high", "xhigh", "max", "ultra"],
+        help="临时指定思考档位：off(关闭思考) | low | medium | high | xhigh | max | ultra",
     )
     parser.add_argument("--no-stream", action="store_true", help="关闭实时流式输出，改为静默并发等待全部返回")
     parser.add_argument("--eli5", action="store_true", help="要求专家每条专业结论后附带通俗大白话（ELI5）解释")

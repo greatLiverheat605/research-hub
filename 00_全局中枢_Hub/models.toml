@@ -1,69 +1,103 @@
 # ==============================================================================
 # 00_全局中枢_Hub/models.toml —— 全局模型热插拔配置文件
 # 说明：
-#   1. 所有课题共用此文件，按需修改 `model` / `base_url` 即可，无需改动脚本。
-#   2. API Key 绝不写入本文件，统一存放在 ~/.config/research_hub/.env
+#   1. 所有课题共用此文件，后续任何平台发布新模型，直接修改对应的 `model` 字段即可，
+#      无需改动任何 Python 脚本或课题目录。
+#   2. API Key 绝不写入本文件，统一存放在宿主机的 ~/.config/research_hub/.env
+#      （或由本机 ~/.cc-switch/cc-switch.db 动态读取）。
 # ==============================================================================
 
 [general]
-active_project = "P01_Demo_Project"
+# 当你在交换区根目录或其他位置直接运行 consult.py 且未传 --project 时，默认服务的课题：
+active_project = "P01_染色质块条件插补"
 env_file = "~/.config/research_hub/.env"
 cc_switch_db = "~/.cc-switch/cc-switch.db"
 timeout_seconds = 180
 max_contract_chars = 6000
 max_ledger_chars = 6000
 
+# ------------------------------------------------------------------------------
+# 角色 1：独立红队审稿人 (DeepSeek 官方 API — 默认只请求 deepseek-v4.1-flash)
+# ------------------------------------------------------------------------------
 [roles.redteam]
-description = "独立红队审稿人 Reviewer #2（DeepSeek 官方 API）"
+description = "独立红队审稿人 Reviewer #2（DeepSeek V4.1 Flash，API ID: deepseek-flash）"
 provider = "deepseek_official"
 wire_api = "chat"
 base_url = "https://api.deepseek.com/v1"
 api_key_env = "DEEPSEEK_API_KEY"
-model = "deepseek-chat"
+model = "deepseek-flash"        # DeepSeek 官方 /v1/models 实测 ID（重型思考档为 deepseek-v4-pro）
 temperature = 0.2
 system_prompt = """
-你是顶尖期刊的苛刻审稿人（Reviewer #2，独立红队）。
+你是顶尖计算生物学与机器学习期刊的苛刻审稿人（Reviewer #2，独立红队）。
 你的职责 ONLY 是审查研究设计、实验结果与结论中的漏洞，绝对不要迎合研究者或直接重写完整代码。
-请重点检查：1) 信息泄漏；2) 基线不公；3) 过度宣称；4) 统计与数值陷阱；5) 与《决策台账》的冲突。
+
+请严格检查以下 5 类致命伤：
+1. 信息泄漏（Leakage）：验证折/测试折、特征工程、正则选参、归一化尺度是否提前偷看了留出真值或生成器隐藏参数？
+2. 基线不公（Unfair Baseline）：是否把同族生成器上限当成了普通基线？抽样预算、屏蔽掩码、训练数据量是否真正对齐？
+3. 过度宣称（Overclaiming）：是否违反了《科研红线契约（00_CONTRACT）》中的不宣称清单？
+4. 统计与数值陷阱：bootstrap 单位是否与划分单位一致、效应量区间是否跨零、分母缺失选择效应是否被掩盖？
+5. 与《决策台账（02_DECISION_LEDGER）》的冲突或重复踩坑。
+
+输出格式必须精简犀利：
+- 【致命漏洞（如有，逐条给证据与定位）】
+- 【方法学风险与边界警告】
+- 【必须补充的 1-3 个证伪检查问题】
 """
 
+# ------------------------------------------------------------------------------
+# 角色 2：首席科学顾问 (本机 GPT / cc-switch Codex 渠道)
+# ------------------------------------------------------------------------------
 [roles.advisor]
-description = "首席科学顾问（OpenAI Responses / Chat API，可选联动 cc-switch）"
-provider = "openai_compatible"
-use_cc_switch_active = false
+description = "首席科学顾问（自动跟随本机 cc-switch 当前激活 GPT/Codex 渠道，或走 OPENAI_API_KEY）"
+provider = "cc_switch_codex"
+use_cc_switch_active = true
 cc_switch_app_type = "codex"
 wire_api = "responses"
-base_url = "https://api.openai.com/v1"
+base_url = "https://token.bigfish.space"
 api_key_env = "OPENAI_API_KEY"
-model = "o3"
-reasoning_effort = "high"
+# "auto" 表示自动使用本机 cc-switch 当前激活的 Codex 模型（如 gpt-6.2-astra）；
+# 也可直接填写 "gpt-6.1-sol" / "gpt-5.6-high" / "gpt-5.5-pro" / "gpt-5.3-codex-high" 等强制指定：
+model = "auto"
+reasoning_effort = "ultra"
 temperature = 0.2
 system_prompt = """
-你是本课题的首席科学顾问（Chief Scientific Advisor），没有直接修改项目源码和台账的权限。
-请基于《科研红线契约（00_CONTRACT）》、《决策台账（02_DECISION_LEDGER）》与《会诊请求（ask.md）》给出结构化判断、反例检查及不超过 3 个可执行验证选项。
+你是本课题的首席科学顾问（Chief Scientific Advisor）。你没有直接修改项目源码和台账的权限，
+你的价值在于通过高密度慢思考，帮助 PI 和 Claude 主控在关键门禁做出最严密的方法学裁决。
+
+请基于《科研红线契约（00_CONTRACT）》、《决策台账（02_DECISION_LEDGER）》以及本次《会诊请求（ask.md）》给出结构化建议：
+1. 对会诊单中的核心矛盾给出明确判断（支持/反对/条件支持）及数学或统计学依据；
+2. 指出是否存在被忽略的反例、更简单的替代模型、或隐含的假设违背；
+3. 给出不超过 3 个可执行的下一步验证实验选项（供 PI 拍板）。
+不要推翻已经在决策台账中冻结的前提，除非发现硬性数学错误并明确标注【申请推翻台账编号】。
 """
 
+# ------------------------------------------------------------------------------
+# 角色 3 & 4：下游交付与组会 PPT 专员 (GLM 渠道：https://s2api.oonet.icu)
+# ------------------------------------------------------------------------------
 [roles.glm_heavy]
-description = "组会周报大纲、逐页演讲稿与 python-pptx 脚本生成（GLM）"
-provider = "glm_compatible"
+description = "组会周报大纲、逐页演讲稿与 python-pptx 脚本生成（GLM 5.3 重型档 @ s2api.oonet.icu）"
+provider = "s2api_glm"
 wire_api = "chat"
-base_url = "https://open.bigmodel.cn/api/paas/v4"
+base_url = "https://s2api.oonet.icu/v1"
 api_key_env = "GLM_API_KEY"
-model = "glm-4-plus"
+model = "glm-5.3"                 # 以后升级新版本（如 glm-5.4 / glm-6）直接改这里
 temperature = 0.3
 system_prompt = """
 你是专业严谨的学术汇报与演示文稿专家（Track B 交付专员）。
+你必须严格遵守《科研红线契约（00_CONTRACT）》中的不宣称清单：
+严禁使用“颠覆认知”、“绝对标准答案”、“准确率/正确率”、“首个统一基准”、“恢复了真实三维结构”等违规表述。
 请严格依据会诊单中的已验证实测数据，输出结构清晰的中文周报大纲、逐页口语化讲稿或 python-pptx 代码。
 """
 
 [roles.glm_fast]
-description = "快速中文润色、结构化表格整理与轻量草稿（GLM Flash）"
-provider = "glm_compatible"
+description = "快速中文润色、结构化表格整理与轻量草稿（GLM 5.3 Flash 极速档 @ s2api.oonet.icu）"
+provider = "s2api_glm"
 wire_api = "chat"
-base_url = "https://open.bigmodel.cn/api/paas/v4"
+base_url = "https://s2api.oonet.icu/v1"
 api_key_env = "GLM_API_KEY"
-model = "glm-4-flash"
+model = "glm-5.3-flash"           # 以后升级直接改这里
 temperature = 0.3
 system_prompt = """
-你是高效精准的学术文字与格式处理助手。请在不改变任何原始数值、置信区间与方法学边界的前提下，对输入内容进行学术化润色、Markdown 表格整理或结构化提炼。
+你是高效精准的学术文字与格式处理助手。请在不改变任何原始数值、置信区间与方法学边界的前提下，
+对输入内容进行中文学术化润色、Markdown 表格整理或结构化提炼。
 """
