@@ -947,6 +947,15 @@ def main() -> int:
             model_overrides[target_roles[0]] = args.model.strip()
 
     runtimes = [resolve_role_runtime(r, config, dotenv, model_overrides.get(r), args.effort) for r in target_roles]
+    if args.pivot:
+        for rt in runtimes:
+            sp = rt.get("system_prompt", "")
+            sp = re.sub(r"不要推翻已经在决策台账中冻结的前提[^\n]*", "", sp)
+            rt["system_prompt"] = (
+                sp.strip()
+                + "\n\n【🚨 方向破局最高授权 (--pivot)】：本次会诊已完全解除《决策台账（02_DECISION_LEDGER）》的一切历史锁定！"
+                "允许并鼓励你从第一性原理出发，大胆推翻或砍掉过去作茧自缚的复杂数学补丁，用通俗白话协助 PI 降维做减法或切换科学方向。"
+            )
 
     print(f"[ResearchHub] 目标课题：{project_dir.name}")
     print(
