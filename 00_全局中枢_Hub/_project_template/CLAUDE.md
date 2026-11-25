@@ -78,3 +78,7 @@
 - 已开通 Gitea 的课题可投 `gitea_set_issue_state`（`issue_number` 与 `state` open/closed）、`gitea_issue_attachment`（`issue_number`、`file`，可选 `comment_id`）、`gitea_release_upload`（`tag`、`file`，需新建时显式 `create_release:true`）。超过 10 MB 的包走 Release。P02 验收和结单按负责人回执执行。结单后 7～14 天清理临时交接包。
 
 - 需要在宿主机大屏展示长实验进度时，在每个适当的批次或阶段完成后单独输出一行，例如 `print('RH_PROGRESS '+json.dumps({"phase":"训练", "done":epoch+1, "total":epochs}, ensure_ascii=False), flush=True)`，先 `import json`。`done` 和 `total` 使用同一阶段的计数单位。总量未知时省略 `total`。
+
+- **文献核验与宿主机深度调研工单（`lit_fetch` & `scout_request`）**：
+  - 需快速核验 DOI / 拉取标准 BibTeX 或检索 PubMed/bioRxiv 摘要时，直接向 `_dispatch/pending/<job_id>.json` 投递 `{"job_id":"lit_唯一序号","action":"lit_fetch","query":"关键词","doi":"可选DOI","limit":5,"output":"01_论文与协议/lit_result.json"}`，宿主机 `dispatchd` 自动秒级返回结果到 `_dispatch/done/<job_id>_result.md`。
+  - 需宿主机进行多篇文献深度精读（产出《文献事实卡片》）、跨方向发散脑暴或网页调研时，投递 `{"job_id":"scout_唯一序号","action":"scout_request","topic":"调研主题","context":"背景","questions":["问题1"],"target_file":"01_论文与协议/文献事实卡片.md"}`（或写 `_bus/scout_ask.md`），并提醒 PI 在宿主机窗口输入 **「处理调研单」**；完成后回执自动写入 `_bus/scout_reply.md` 并在 `_control/01_PROJECT_STATE.md` 顶部收件箱提醒。

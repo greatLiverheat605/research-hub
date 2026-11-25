@@ -35,6 +35,9 @@ def fetch_by_doi(doi: str) -> Dict[str, Any]:
     except Exception:
         bibtex = ""
 
+    if bibtex and not bibtex.lstrip().startswith("@"):
+        bibtex = ""
+
     authors = [
         f"{a.get('given', '')} {a.get('family', '')}".strip()
         for a in (msg.get("author") or [])
