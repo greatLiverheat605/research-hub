@@ -737,19 +737,46 @@
         <div id="cockpitBlogMain" class="blog-main">
           <div id="cpsec-overview" class="blog-sec active">
 <section class="card" id="jobMonitor">
-  <div class="card-head"><span class="card-title">实验工单与回执</span></div>
+  <div class="card-head">
+    <span class="card-title">实验工单与回执（进程状态 vs 科学实验门禁结论解耦 · 五阶段生命周期追踪）</span>
+  </div>
   <div class="card-body">
     <div class="dispatch-tools"><label>查找工单 <input id="dispatchFilter" type="search" placeholder="输入 job_id"></label><span id="workerState"></span></div>
-    <h3 class="checkpoint-title">正在执行的实验</h3>
+    <h3 class="checkpoint-title">正在执行的实验（五阶段生命周期）</h3>
     <div id="experimentProgress">正在读取工单…</div>
+    <h3 class="checkpoint-title">最近工单：进程执行状态 vs 科学实验门禁结论</h3>
+    <div id="dispatchVerdictCards" style="margin-bottom:10px;">正在读取门禁结论…</div>
     <h3 class="checkpoint-title">Colab 检查点</h3>
     <div id="checkpointList">正在读取 Mac 保存记录…</div>
-    <details class="dispatch-details" open><summary>工单状态与日志</summary><pre id="dispatchLive">读取队列中…</pre></details>
+    <details class="dispatch-details"><summary>查看原始工单日志详情（点击展开）</summary><pre id="dispatchLive">读取队列中…</pre></details>
   </div>
 </section>
       <div class="setup-banner" id="setupBanner"></div>
       <div id="visualTelemetryStrip" style="display:none;"></div>
       <div class="hero-grid" id="heroGrid"></div>
+
+      <!-- Active Inbox & One-Click Resume / Pivot Console -->
+      <div class="card" id="inboxAndResumeCard">
+        <div class="card-head">
+          <span class="card-title">🚨 首屏未闭环收件箱 &amp; 一键恢复工作 / 方向破局控制台</span>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn btn-light btn-xs" onclick="openRawDrawer('gemini')">♊ GEMINI.md 守则</button>
+            <button class="btn btn-light btn-xs" onclick="openRawDrawer('pivot')">🧭 破局与黑话字典原文</button>
+            <button class="btn btn-light btn-xs" id="giteaInboxDrawerBtn" style="display:none;" onclick="openRawDrawer('gitea_inbox')">📬 Gitea 同步箱</button>
+            <button class="btn btn-light btn-xs" id="releaseLedgerDrawerBtn" style="display:none;" onclick="openRawDrawer('release_ledger')">🧹 Release 清理台账</button>
+          </div>
+        </div>
+        <div class="card-body" id="inboxAndResumeBody">加载中...</div>
+      </div>
+
+      <!-- De-Jargon & Direction Pivot Guide -->
+      <div class="card" id="pivotGuideCard">
+        <div class="card-head">
+          <span class="card-title" id="pivotGuideTitle">🧭 科研方向破局 &amp; 黑话术语大白话对照指南（防死循环 · 一眼看懂核心矛盾）</span>
+          <button class="btn btn-teal btn-xs" onclick="openRawDrawer('pivot')">📖 抽屉全屏阅读 / 复制</button>
+        </div>
+        <div class="card-body md" id="pivotGuideBody" style="max-height:460px;overflow-y:auto;">加载中...</div>
+      </div>
 
       <!-- Research Stage Pipeline -->
       <div class="card">
@@ -759,6 +786,7 @@
             <button class="btn btn-light btn-xs" onclick="openRawDrawer('state')">📄 沙盘原文</button>
             <button class="btn btn-light btn-xs" onclick="openRawDrawer('contract')">🛡️ 契约原文</button>
             <button class="btn btn-light btn-xs" onclick="openRawDrawer('claude')">🤖 Claude 守则</button>
+            <button class="btn btn-light btn-xs" onclick="openRawDrawer('gemini')">♊ Gemini 守则</button>
           </div>
         </div>
         <div class="card-body">
@@ -1169,15 +1197,17 @@
       </div>
       <div class="card">
         <div class="card-head">
-          <span class="card-title">⚡ 宿主机 Pebrel 手动点火会诊命令</span>
+          <span class="card-title">⚡ 宿主机 Pebrel / Ghostty 手动点火会诊命令（新增 --pivot 破局去台账死锁模式）</span>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn btn-light btn-xs" onclick="copyCmd('consult redteam')">📋 复制 consult redteam</button>
-            <button class="btn btn-light btn-xs" onclick="copyCmd('consult advisor')">📋 复制 consult advisor</button>
-            <button class="btn btn-teal btn-xs" onclick="copyCmd('consult all')">📋 复制 consult all</button>
+            <button class="btn btn-light btn-xs" onclick="copyCmd('consult redteam --eli5')">📋 复制 consult redteam --eli5</button>
+            <button class="btn btn-light btn-xs" onclick="copyCmd('consult advisor --eli5')">📋 复制 consult advisor --eli5</button>
+            <button class="btn btn-teal btn-xs" onclick="copyCmd('consult all --eli5')">📋 复制 consult all --eli5</button>
+            <button class="btn btn-teal btn-xs" style="background:#B45309;border-color:#B45309;" onclick="copyCmd('consult all --pivot --eli5')">🔥 复制方向破局 consult all --pivot --eli5</button>
           </div>
         </div>
         <div class="card-body" style="padding:10px 16px;font-size:12.5px;color:var(--muted);">
-          流程：Claude 写完 <code>_bus/ask.md</code> → 在宿主机 Pebrel 回车运行 <code>consult all</code> → 专家回执写入 <code>_bus/reply.md</code> → 复制口令让 Claude 过滤并输出 A/B 拍板选项。
+          • <strong>常规会诊</strong>：运行 <code>consult all --eli5</code>（遵循 <code>02_DECISION_LEDGER.md</code> 已冻结决定，附大白话解释）。<br/>
+          • <strong>🚨 方向破局会诊（防死循环）</strong>：当方向走偏或陷入打数学补丁死循环时，运行 <code>consult all --pivot --eli5</code>（<strong>自动屏蔽历史台账包袱</strong>，强制输出【黑话术语白话对照表】与【Simplify 降维 / Pivot 换方向 / Hard Stop 一票否决】三选一卡片）。
         </div>
       </div>
 
@@ -1189,9 +1219,36 @@
         <div class="card">
           <div class="card-head">
             <span class="card-title">📥 _bus/reply.md（外部专家回执）</span>
-            <button class="btn btn-light btn-xs" onclick="copyText('会诊回执已到，请读取 _bus/reply.md，对照 _control/02_DECISION_LEDGER.md 过滤越权或无效建议，向我汇报 A/B 拍板选项。', '已复制给 Claude 的收口口令')">📋 复制收口口令</button>
+            <button class="btn btn-light btn-xs" onclick="copyText('会诊回执已到，请读取 _bus/reply.md，先列出术语白话对照表，再向我汇报 A/B/C 拍板选项。', '已复制给 Claude 的收口口令')">📋 复制收口口令</button>
           </div>
           <div class="card-body md" style="min-height:380px;max-height:calc(100vh - 340px);overflow-y:auto;" id="replyView"></div>
+        </div>
+      </div>
+
+      <!-- Host Official Antigravity (Gemini) Scout Bus -->
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">♊ 宿主机官方 Antigravity (Gemini) 深度调研与文献总线（100% 合规纯文件交互 · 零逆向 API）</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-teal btn-xs" onclick="copyText('处理调研单', '已复制 Antigravity 口令：处理调研单')">📋 复制 Antigravity 口令：处理调研单</button>
+            <button class="btn btn-light btn-xs" onclick="copyText('探讨方向', '已复制 Antigravity 口令：探讨方向')">📋 复制口令：探讨方向</button>
+            <button class="btn btn-light btn-xs" onclick="copyText('帮我跑破局会诊', '已复制 Antigravity 口令：帮我跑破局会诊')">📋 复制口令：帮我跑破局会诊</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div style="font-size:12.5px;color:var(--muted);margin-bottom:10px;">
+            虚拟机 Claude 可直接投递 <code>{"action":"lit_fetch"}</code> 秒查 Crossref/PubMed/bioRxiv，或投递 <code>{"action":"scout_request"}</code> 生成 <code>_bus/scout_ask.md</code>；你在本课题的 Antigravity 项目窗口输入<strong>「处理调研单」</strong>后，Gemini 自动完成调研写回 <code>_bus/scout_reply.md</code> 并自动点亮 <code>01_PROJECT_STATE.md</code> 首屏收件箱。
+          </div>
+          <div class="grid-2">
+            <div style="border:1px solid var(--border);border-radius:8px;padding:12px;background:var(--card-inner);">
+              <div style="font-weight:700;font-size:13px;color:var(--navy);margin-bottom:6px;">📤 _bus/scout_ask.md（待宿主机调研请求）</div>
+              <div class="md" id="scoutAskView" style="max-height:260px;overflow-y:auto;font-size:12.5px;"></div>
+            </div>
+            <div style="border:1px solid var(--border);border-radius:8px;padding:12px;background:var(--card-inner);">
+              <div style="font-weight:700;font-size:13px;color:var(--navy);margin-bottom:6px;">📥 _bus/scout_reply.md（宿主机 Antigravity 调研回执）</div>
+              <div class="md" id="scoutReplyView" style="max-height:260px;overflow-y:auto;font-size:12.5px;"></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1362,7 +1419,7 @@
     const dispatchLabels = {PENDING:'已排队', RUNNING:'执行器已接单', SUCCESS:'成功', FAILED:'失败', INTERRUPTED:'执行中断'};
     function renderExperimentProgress(jobs, filtered) {
       const panel = document.getElementById('experimentProgress');
-      const running = jobs.filter(job => job.status === 'RUNNING' && ['local_py','colab_py','remote_py','win_codex_py'].includes(job.action));
+      const running = jobs.filter(job => job.status === 'RUNNING' && ['local_py','colab_py','remote_py','win_codex_py','lit_fetch','scout_request'].includes(job.action));
       if (!running.length) {
         panel.textContent = filtered ? '匹配的工单中没有运行中的实验' : '本课题当前没有运行中的实验';
         return;
@@ -1372,8 +1429,9 @@
         row.className = 'checkpoint-entry';
         const label = document.createElement('div');
         const p = job.progress;
-        const count = !p ? '已接单，等待读取进度' : p.total == null ? `已完成 ${p.done} 步` : `${p.done} / ${p.total} 步（${Math.floor(100*p.done/p.total)}%）`;
-        label.textContent = [job.id, p?.phase, count].filter(Boolean).join(' · ');
+        const stageTxt = job.stage ? `[${job.stage}] ` : '';
+        const count = !p ? (job.last_line ? `最新输出: ${job.last_line}` : '已接单，等待读取进度') : p.total == null ? `已完成 ${p.done} 步` : `${p.done} / ${p.total} 步（${Math.floor(100*p.done/p.total)}%）`;
+        label.textContent = [stageTxt + job.id, p?.phase, count].filter(Boolean).join(' · ');
         row.append(label);
         if (p && p.total != null) {
           const bar = document.createElement('progress');
@@ -1385,6 +1443,55 @@
         }
         return row;
       }));
+    }
+    function renderDispatchVerdictCards(jobs, q) {
+      const box = document.getElementById('dispatchVerdictCards');
+      if (!box) return;
+      if (!jobs || !jobs.length) {
+        box.textContent = q ? '本课题未找到该 job_id' : '本课题暂无工单记录';
+        return;
+      }
+      box.innerHTML = jobs.slice(0, 8).map(j => {
+        const procOk = j.status === 'SUCCESS';
+        const procBadge = j.status === 'RUNNING' ? '<span class="badge badge-info">⏳ 运行中</span>'
+          : j.status === 'PENDING' ? '<span class="badge badge-info">🕒 排队中</span>'
+          : procOk ? '<span class="badge badge-pass">⚙️ 进程退出: SUCCESS</span>'
+          : `<span class="badge badge-fail">⚙️ 进程退出: ${escapeHtml(j.status)}</span>`;
+
+        const v = j.verdict || (procOk ? 'PASS' : 'EXEC_FAIL');
+        const vSum = j.verdict_summary || '';
+        let vBadge = '';
+        let borderCol = 'var(--teal)';
+        if (v === 'GATE_FAIL') {
+          vBadge = `<span class="badge badge-fail">🚨 实验门禁未过 (GATE_FAIL): ${escapeHtml(vSum)}</span>`;
+          borderCol = '#DC2626';
+        } else if (v === 'EXEC_FAIL') {
+          vBadge = `<span class="badge badge-fail">❌ 执行异常 (EXEC_FAIL): ${escapeHtml(vSum || '进程失败')}</span>`;
+          borderCol = '#DC2626';
+        } else if (v === 'WARN') {
+          vBadge = `<span class="badge badge-warn">⚠️ 告警/未收敛 (WARN): ${escapeHtml(vSum)}</span>`;
+          borderCol = '#D97706';
+        } else if (v === 'RUNNING' || v === 'PENDING') {
+          vBadge = `<span class="badge badge-info">🧭 阶段: ${escapeHtml(j.stage || vSum)}</span>`;
+        } else {
+          vBadge = `<span class="badge badge-pass">✅ 科学门禁: ${escapeHtml(vSum || 'PASS')}</span>`;
+        }
+        const stageStr = j.stage ? `<span style="font-size:11.5px;color:var(--muted);">阶段：${escapeHtml(j.stage)}</span>` : '';
+        return `
+          <div style="border:1px solid var(--border);border-left:4px solid ${borderCol};border-radius:8px;padding:8px 12px;margin-bottom:7px;background:var(--card-inner);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <strong style="color:var(--navy);font-size:12.5px;">${escapeHtml(j.id)}</strong>
+              <code style="font-size:11px;background:var(--tint);padding:1px 6px;border-radius:4px;">${escapeHtml(j.action)}</code>
+              ${procBadge}
+              ${vBadge}
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              ${stageStr}
+              <span style="font-size:11px;color:var(--muted);">${new Date(j.updated*1000).toLocaleString()}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
     }
     function renderCheckpoints(data, q) {
       const panel = document.getElementById('checkpointList');
@@ -1427,8 +1534,9 @@
         if (id !== dispatchRequest || project !== document.getElementById('projectSelect').value) return;
         document.getElementById('workerState').textContent = (data.worker_online?'宿主执行器在线':'宿主执行器离线，任务可能等待接单') + (data.cloud_lease?' · 宿主机跟踪的 Colab 会话 '+data.cloud_lease:'');
         renderExperimentProgress(data.jobs, q);
+        renderDispatchVerdictCards(data.jobs, q);
         renderCheckpoints(data, q);
-        const text = data.jobs.map(j => `${dispatchLabels[j.status]||j.status}  ${j.id}  ${j.action}  ${new Date(j.updated*1000).toLocaleString()}\n${j.detail}`).join('\n\n') || (q?'本课题未找到该 job_id，请核对投递回执':'本课题暂无工单');
+        const text = data.jobs.map(j => `${dispatchLabels[j.status]||j.status} [门禁:${j.verdict||'-'} · ${j.verdict_summary||''}] [阶段:${j.stage||'-'}]  ${j.id}  ${j.action}  ${new Date(j.updated*1000).toLocaleString()}\n${j.detail}`).join('\n\n') || (q?'本课题未找到该 job_id，请核对投递回执':'本课题暂无工单');
         if (display.textContent !== text) display.textContent = text;
       } catch (_) {
         if (id !== dispatchRequest) return;
@@ -1613,10 +1721,106 @@
         ledger: ["📌 02_DECISION_LEDGER.md 原文", currentProjectData.control.ledger_md],
         contract: ["🛡️ 00_CONTRACT.md 原文", currentProjectData.control.contract_md],
         claude: ["🤖 CLAUDE.md 主控守则原文", currentProjectData.control.claude_md],
+        gemini: ["♊ GEMINI.md 宿主机 Antigravity 守则原文", currentProjectData.control.gemini_md || "（当前课题尚未生成 GEMINI.md）"],
+        pivot: ["🧭 科研方向破局 & 黑话术语大白话对照指南", currentProjectData.control.pivot_guide_md || currentProjectData.control.gitea_inbox_md || "（当前课题暂无独立破局指南）"],
+        gitea_inbox: ["📬 05_Gitea协作同步区/ISSUES_DETAIL_INBOX.md（含 PR 行级评审意见）", currentProjectData.control.gitea_inbox_md || "（本课题未开启 Gitea 同步）"],
+        release_ledger: ["🧹 05_Gitea协作同步区/RELEASE_CLEANUP_LEDGER.tsv（大文件交接与 7~14 天清理台账）", "```tsv\n" + (currentProjectData.control.release_ledger_tsv || "（暂无记录）") + "\n```"],
       };
       const entry = map[kind];
       if (!entry) return;
       openDrawer(entry[0], renderMarkdown(entry[1]), "📋 复制原文", () => copyText(entry[1], "已复制 Markdown 原文"));
+    }
+
+    function renderInboxAndPivotGuide() {
+      if (!currentProjectData) return;
+      const p = currentProjectData;
+      const inboxItems = p.parsed_inbox || [];
+      const hasGitea = !!(p.control.gitea_inbox_md && p.control.gitea_inbox_md.trim());
+      const hasReleaseLedger = !!(p.control.release_ledger_tsv && p.control.release_ledger_tsv.trim());
+      const gBtn = document.getElementById("giteaInboxDrawerBtn");
+      const rBtn = document.getElementById("releaseLedgerDrawerBtn");
+      if (gBtn) gBtn.style.display = hasGitea ? "inline-flex" : "none";
+      if (rBtn) rBtn.style.display = hasReleaseLedger ? "inline-flex" : "none";
+
+      let claudeResumePrompt = "";
+      let hostPivotCmd = `cd "$RESEARCH_HUB_ROOT/01_在研课题_Projects/${p.name}" && python3 ../../00_全局中枢_Hub/consult.py all --pivot --eli5`;
+      if (p.name.startsWith("P01")) {
+        claudeResumePrompt = "请按启动顺序读取 _control/01_PROJECT_STATE.md、_control/P01_JARGON_AND_PIVOT_GUIDE.md 以及 _bus/reply.md（如有更新）。我现在接续工作并明确三件事：1. 停止在 IDX7（第 7 号格子的单条护栏边界数据）上继续打微积分补丁；2. 宿主机今天已经把 p01_driveprobe 所需的 3 个真实 Drive 输入文件自动备齐了；3. 针对当前候选方法 C2 对 R1 通过概率仅 28% 的核心问题，请严格用大白话（附术语对照表）跟我探讨我们接下来是走【方向一：暂停拆盲测，先跑真实数据探针升级方法】还是【方向二：调整论文主故事线，主打多维互补优势】，给出你的白话对比供我拍板。";
+      } else if (p.name.startsWith("P02")) {
+        claudeResumePrompt = "请读取 _control/01_PROJECT_STATE.md 与 05_Gitea协作同步区/ISSUES_DETAIL_INBOX.md。C04 的代码修订（提交 b64830f3）与工单 #7 的正式回执（#issuecomment-46）已由宿主机推送完成，且 issue_inbox.py 现已同步 PR 行级审查意见与新工单 #12、生成了 RELEASE_CLEANUP_LEDGER.tsv。请核对当前最新同步箱，用大白话向我汇报 P02 接下来最优先要推进的 1～2 项任务。";
+      } else if (p.name.startsWith("P03")) {
+        claudeResumePrompt = "请读取最新更新的 _control/01_PROJECT_STATE.md、_control/P03_DIRECTION_AND_JARGON_GUIDE.md 以及 _bus/reply.md。现在《文献事实卡片_2026-11-20.md》和本机 30kb Hi-C 数据盘点都已经就绪了。请严格使用大白话（附术语白话对照表），结合外部专家回执，帮我对比【路线 A：跨细胞系与 ±Auxin 扰动】、【路线 B：跨染色体区域泛化（或 B+A 联合）】与【路线 C：Hi-C 引导的高缺失率 3D 修复】，告诉我哪条路线最稳、最容易跑出显著阳性指标，并给出第一周仅需 1 天即可验证生死的『最小探针实验（Gate 0）』方案供我拍板。";
+      } else {
+        claudeResumePrompt = `请读取 _control/01_PROJECT_STATE.md、_control/00_CONTRACT.md 与 _bus/reply.md，先列出术语白话对照表，再用大白话向我汇报当前最高优待办与可拍板的 A/B 选项。`;
+      }
+      window._currentClaudeResumePrompt = claudeResumePrompt;
+      window._currentHostPivotCmd = hostPivotCmd;
+
+      const inboxHtml = inboxItems.length
+        ? inboxItems.map((it) => `
+            <div style="padding:8px 12px;border-left:4px solid #D97706;background:#FFFBEB;border-radius:6px;margin-bottom:6px;font-size:12.5px;color:#1E293B;line-height:1.55;">
+              🔔 ${renderInline(it)}
+            </div>
+          `).join("")
+        : `<div style="padding:8px 12px;border-left:4px solid var(--ok);background:var(--ok-bg);border-radius:6px;margin-bottom:6px;font-size:12.5px;color:var(--ok);">✅ 当前首屏收件箱无阻塞未闭环事项。</div>`;
+
+      document.getElementById("inboxAndResumeBody").innerHTML = `
+        <div style="margin-bottom:12px;">
+          <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">📬 01_PROJECT_STATE.md 首屏主动唤醒收件箱（防 AI 遗忘 · 每次新会话第一段必交代）：</div>
+          ${inboxHtml}
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:10px;">
+          <div style="border:1px solid var(--border);border-radius:9px;padding:11px 13px;background:var(--card-inner);display:flex;flex-direction:column;justify-content:space-between;gap:8px;">
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--teal-dark);">Step 1 · 虚拟机 Claude Desktop (New Chat 首句)</div>
+              <div style="font-weight:700;font-size:13px;color:var(--navy);margin:3px 0 5px;">一键恢复 ${escapeHtml(p.name)} 工作（强制大白话 + 破死循环）</div>
+              <div style="font-size:11.5px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">${escapeHtml(claudeResumePrompt)}</div>
+            </div>
+            <button class="btn btn-teal btn-xs" style="justify-content:center;" onclick="copyText(window._currentClaudeResumePrompt, '已复制 Claude 恢复接续指令')">📋 复制发给 Claude 的恢复接续口令</button>
+          </div>
+
+          <div style="border:1px solid var(--border);border-radius:9px;padding:11px 13px;background:var(--card-inner);display:flex;flex-direction:column;justify-content:space-between;gap:8px;">
+            <div>
+              <div style="font-size:11px;font-weight:700;color:#B45309;">Step 2 · 宿主机方向破局会诊 (--pivot 去台账死锁)</div>
+              <div style="font-weight:700;font-size:13px;color:var(--navy);margin:3px 0 5px;">屏蔽历史补丁包袱 · 强制输出黑话表 + 降维/换方向三选一</div>
+              <div class="cmd-box" style="font-size:11px;">${escapeHtml(hostPivotCmd)}</div>
+            </div>
+            <button class="btn btn-teal btn-xs" style="justify-content:center;background:#B45309;border-color:#B45309;" onclick="copyText(window._currentHostPivotCmd, '已复制 --pivot 方向破局会诊命令')">🔥 复制宿主机 --pivot 破局会诊命令</button>
+          </div>
+
+          <div style="border:1px solid var(--border);border-radius:9px;padding:11px 13px;background:var(--card-inner);display:flex;flex-direction:column;justify-content:space-between;gap:8px;">
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--blue);">Step 3 · 宿主机 Antigravity (Gemini) 课题独立项目窗口</div>
+              <div style="font-weight:700;font-size:13px;color:var(--navy);margin:3px 0 5px;">已配置原生 GEMINI.md · 支持 3 大极简口令</div>
+              <div style="font-size:11.5px;color:var(--muted);line-height:1.5;">
+                • <strong>「探讨方向」</strong>：列黑话白话表 + 破局发散<br/>
+                • <strong>「帮我跑破局会诊」</strong>：宿主机代跑 consult --pivot<br/>
+                • <strong>「处理调研单」</strong>：处理 _bus/scout_ask.md 并点亮收件箱
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="btn btn-light btn-xs" style="flex:1;justify-content:center;" onclick="copyText('探讨方向', '已复制口令：探讨方向')">📋 探讨方向</button>
+              <button class="btn btn-light btn-xs" style="flex:1;justify-content:center;" onclick="copyText('帮我跑破局会诊', '已复制口令：帮我跑破局会诊')">📋 跑破局会诊</button>
+              <button class="btn btn-teal btn-xs" style="flex:1;justify-content:center;" onclick="copyText('处理调研单', '已复制口令：处理调研单')">📋 处理调研单</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const guideCard = document.getElementById("pivotGuideCard");
+      const guideTitle = document.getElementById("pivotGuideTitle");
+      const guideBody = document.getElementById("pivotGuideBody");
+      if (p.control.pivot_guide_md && p.control.pivot_guide_md.trim()) {
+        guideCard.style.display = "block";
+        guideTitle.textContent = `🧭 ${p.name} · 科研方向破局 & 黑话术语大白话对照指南（${p.control.pivot_guide_name}）`;
+        guideBody.innerHTML = renderMarkdown(p.control.pivot_guide_md);
+      } else if (hasGitea) {
+        guideCard.style.display = "block";
+        guideTitle.textContent = `📬 ${p.name} · Gitea 协作同步箱 & PR 行级审查意见（ISSUES_DETAIL_INBOX.md）`;
+        guideBody.innerHTML = renderMarkdown(p.control.gitea_inbox_md);
+      } else {
+        guideCard.style.display = "none";
+      }
     }
 
     async function runDryRunDrawer() {
@@ -3014,6 +3218,7 @@
       currentChecksData = await chkRes.json();
 
       renderHeroCards();
+      renderInboxAndPivotGuide();
       renderOrgPage();
       renderSetupWizard();
       renderSweetSpots();
@@ -3028,7 +3233,12 @@
 
       document.getElementById("askView").innerHTML = renderMarkdown(currentProjectData.bus.ask_md);
       document.getElementById("replyView").innerHTML = renderMarkdown(currentProjectData.bus.reply_md);
+      const sAsk = document.getElementById("scoutAskView");
+      const sRep = document.getElementById("scoutReplyView");
+      if (sAsk) sAsk.innerHTML = renderMarkdown(currentProjectData.bus.scout_ask_md || "（当前无待处理的 _bus/scout_ask.md 请求）");
+      if (sRep) sRep.innerHTML = renderMarkdown(currentProjectData.bus.scout_reply_md || "（暂无 _bus/scout_reply.md 回执；在课题 01_论文与协议/ 下可查看已产出的《文献事实卡片》）");
       loadExpTreeAndGallery(projName);
+      initCollapsibleCards();
 
       const arch = currentProjectData.bus.archive_files || [];
       document.getElementById("archivePills").innerHTML = arch.length

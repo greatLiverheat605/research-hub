@@ -27,20 +27,22 @@ from typing import Any, Dict, List, Optional, Tuple
 
 DASHBOARD_DIR = Path(__file__).resolve().parent
 HUB_DIR = DASHBOARD_DIR.parent
-EXCHANGE_ROOT = HUB_DIR.parent
+EXCHANGE_ROOT = Path(os.environ.get("RH_EXCHANGE_ROOT", HUB_DIR.parent))
 PROJECTS_DIR = EXCHANGE_ROOT / "01_在研课题_Projects"
-SKILLS_DIR = HUB_DIR / "skills"
+SKILLS_DIR = EXCHANGE_ROOT / "00_全局中枢_Hub" / "skills"
 GEMINI_SKILLS_DIR = Path.home() / ".gemini" / "config" / "skills"
 
 sys.path.insert(0, str(HUB_DIR))
 sys.path.insert(0, str(HUB_DIR / "scripts"))
+from protected_paths import walk, protected
+import job_status
 import check_manuscript  # noqa: E402
 import consult  # noqa: E402
 import exp_store  # noqa: E402
 
 
 SKIP_DIRS = {"__pycache__", ".git", ".ipynb_checkpoints", "冻结存档-20261117", "node_modules"}
-ALLOWED_EXTS = {".md", ".py", ".ipynb", ".json", ".toml", ".pptx", ".pdf"}
+ALLOWED_EXTS = {".md", ".py", ".ipynb", ".json", ".toml", ".pptx", ".pdf", ".tsv"}
 
 MODULE_DEFS = [
     ("A", "A_T3T4管线与采样验收", "T3/T4 管线与采样验收", "#0072B2"),
@@ -53,9 +55,10 @@ MODULE_DEFS = [
 
 def _safe_read_text(path: Path, max_bytes: int = 512 * 1024) -> str:
     """Read UTF-8 text safely with size guard."""
-    if not path.is_file():
+    if protected(path.resolve()) or not path.is_file() or not (_is_within(path, EXCHANGE_ROOT) or _is_within(path,HUB_DIR)):
         return ""
-    data = path.read_bytes()
+    with path.open("rb") as source:
+        data = source.read(max_bytes+1)
     if len(data) > max_bytes:
         head = data[:max_bytes].decode("utf-8", errors="replace")
         return head + f"\n\n...（文件过大，仅展示前 {max_bytes // 1024} KB）"
@@ -181,6 +184,26 @@ def _parse_todos(state_md: str) -> List[Dict[str, str]]:
     return out
 
 
+def _parse_inbox(state_md: str) -> List[str]:
+    """Extract bullet lines under ## 🚨 待汇报与未闭环事项收件箱 from 01_PROJECT_STATE.md."""
+    items: List[str] = []
+    in_inbox = False
+    for line in state_md.splitlines():
+        s = line.strip()
+        if s.startswith("##") and ("待汇报与未闭环" in s or "收件箱" in s):
+            in_inbox = True
+            continue
+        if in_inbox and (s.startswith("## ") or s == "---"):
+            if items:
+                break
+            continue
+        if in_inbox and (s.startswith("-") or s.startswith("*")):
+            cleaned = re.sub(r"^[-*]\s*(\[[ xX]\]\s*)?", "", s).strip()
+            if cleaned:
+                items.append(cleaned)
+    return items
+
+
 def _parse_decisions(ledger_md: str) -> List[Dict[str, str]]:
     """Parse decision rows from 02_DECISION_LEDGER.md."""
     rows: List[Dict[str, str]] = []
@@ -248,8 +271,8 @@ def _compute_module_stats(proj_dir: Path) -> List[Dict[str, Any]]:
                 continue
             if resolved.is_file() and resolved.suffix.lower() == ".md":
                 md_count += 1
-            elif resolved.is_dir():
-                for root_s, _, files in os.walk(str(resolved)):
+            elif resolved.is_dir() and _is_within(resolved,proj_dir) and not protected(resolved):
+                for root_s, _, files in walk(resolved):
                     if any(sk in root_s for sk in SKIP_DIRS):
                         continue
                     md_count += sum(1 for fn in files if fn.lower().endswith(".md"))
@@ -328,7 +351,7 @@ def _scan_section_files(base_dir: Path, project_dir: Path, max_depth: int = 3) -
     seen_real: set = set()
     base_depth = len(base_dir.parts)
 
-    for root_str, dirs, files in os.walk(str(base_dir), followlinks=True):
+    for root_str, dirs, files in walk(base_dir):
         root_p = Path(root_str)
         cur_depth = len(root_p.parts) - base_depth
         dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS and not d.startswith("."))
@@ -380,6 +403,7 @@ def run_six_point_checks(proj_dir: Path) -> Dict[str, Any]:
         for d in dirs:
             if d.startswith("冻结存档-") or d == "冻结件":
                 frozen_targets.append(Path(root_s) / d)
+        dirs[:] = [d for d in dirs if not protected(d) and not d.startswith(".") and not (Path(root_s)/d).is_symlink()]
     if frozen_targets:
         writable_items = []
         for fdir in frozen_targets:
@@ -408,7 +432,7 @@ def run_six_point_checks(proj_dir: Path) -> Dict[str, Any]:
     # 2. Symlink Integrity (active exchange root + Antigravity skills)
     total_links = 0
     broken_links: List[str] = []
-    for root_s, dirs, files in os.walk(str(EXCHANGE_ROOT)):
+    for root_s, dirs, files in walk(EXCHANGE_ROOT):
         dirs[:] = [d for d in dirs if d not in ("冻结存档-20261117", "99_历史归档_Archive")]
         for entry in dirs + files:
             p = Path(root_s) / entry
@@ -439,8 +463,7 @@ def run_six_point_checks(proj_dir: Path) -> Dict[str, Any]:
     env_mode = stat.S_IMODE(env_path.stat().st_mode) if env_path.exists() else 0
     env_ok = env_path.exists() and env_outside and (env_mode == 0o600)
     leaked_env_files = [
-        str(p) for p in EXCHANGE_ROOT.rglob(".env*")
-        if "冻结存档-20261117" not in str(p) and "99_历史归档_Archive" not in str(p) and p.is_file()
+        str(Path(base)/f) for base, _, files in walk(EXCHANGE_ROOT) for f in files if f.startswith('.env')
     ]
     sec_ok = env_ok and not leaked_env_files
     sec_details = [f"宿主机密钥路径：{env_path}（权限 {oct(env_mode)}，虚拟机不可见）"]
@@ -590,7 +613,19 @@ def build_project_payload(proj_dir: Path) -> Dict[str, Any]:
     ledger_md = _safe_read_text(proj_dir / "_control" / "02_DECISION_LEDGER.md")
     contract_md = _safe_read_text(proj_dir / "_control" / "00_CONTRACT.md")
     claude_md = _safe_read_text(proj_dir / "CLAUDE.md")
+    gemini_md = _safe_read_text(proj_dir / "GEMINI.md")
     readme_md = _safe_read_text(proj_dir / "README.md")
+
+    pivot_guide_path = None
+    for cand in ("P01_JARGON_AND_PIVOT_GUIDE.md", "P03_DIRECTION_AND_JARGON_GUIDE.md", "DIRECTION_AND_JARGON_GUIDE.md"):
+        if (proj_dir / "_control" / cand).is_file():
+            pivot_guide_path = proj_dir / "_control" / cand
+            break
+    pivot_guide_md = _safe_read_text(pivot_guide_path) if pivot_guide_path else ""
+    pivot_guide_name = f"_control/{pivot_guide_path.name}" if pivot_guide_path else ""
+
+    gitea_inbox_md = _safe_read_text(proj_dir / "05_Gitea协作同步区" / "ISSUES_DETAIL_INBOX.md")
+    release_ledger_tsv = _safe_read_text(proj_dir / "05_Gitea协作同步区" / "RELEASE_CLEANUP_LEDGER.tsv")
 
     archive_dir = proj_dir / "_bus" / "archive"
     archive_files: List[Dict[str, str]] = []
@@ -601,12 +636,16 @@ def build_project_payload(proj_dir: Path) -> Dict[str, Any]:
 
     sections = []
     total_files = 0
-    for label, sub in [
+    sec_defs = [
+        ("_control（控制沙盘与破局指南）", "_control"),
         ("01_论文与协议", "01_论文与协议"),
         ("02_实验与验证", "02_实验与验证"),
         ("03_代码与脚本", "03_代码与脚本"),
         ("04_组会与周报_Weekly", "04_组会与周报_Weekly"),
-    ]:
+    ]
+    if (proj_dir / "05_Gitea协作同步区").is_dir():
+        sec_defs.append(("05_Gitea协作同步区", "05_Gitea协作同步区"))
+    for label, sub in sec_defs:
         files = _scan_section_files(proj_dir / sub, proj_dir, max_depth=3)
         total_files += len(files)
         sections.append({"label": label, "files": files})
@@ -616,6 +655,7 @@ def build_project_payload(proj_dir: Path) -> Dict[str, Any]:
         "vm_path": f"/Volumes/My Shared Files/ClaudeShield-Exchange/01_在研课题_Projects/{proj_dir.name}",
         "host_path": str(proj_dir),
         "total_files": total_files,
+        "parsed_inbox": _parse_inbox(state_md),
         "parsed_milestones": _parse_milestones(state_md),
         "parsed_todos": _parse_todos(state_md),
         "parsed_decisions": _parse_decisions(ledger_md),
@@ -626,11 +666,18 @@ def build_project_payload(proj_dir: Path) -> Dict[str, Any]:
             "ledger_md": ledger_md,
             "contract_md": contract_md,
             "claude_md": claude_md,
+            "gemini_md": gemini_md,
+            "pivot_guide_md": pivot_guide_md,
+            "pivot_guide_name": pivot_guide_name,
+            "gitea_inbox_md": gitea_inbox_md,
+            "release_ledger_tsv": release_ledger_tsv,
             "readme_md": readme_md,
         },
         "bus": {
             "ask_md": _safe_read_text(proj_dir / "_bus" / "ask.md"),
             "reply_md": _safe_read_text(proj_dir / "_bus" / "reply.md"),
+            "scout_ask_md": _safe_read_text(proj_dir / "_bus" / "scout_ask.md"),
+            "scout_reply_md": _safe_read_text(proj_dir / "_bus" / "scout_reply.md"),
             "archive_files": archive_files,
         },
         "sections": sections,
@@ -922,7 +969,7 @@ def _scan_project_artifacts(proj_dir: Path, limit: int = 120) -> List[Dict[str, 
         base = proj_dir / root_name
         if not base.is_dir():
             continue
-        for cur_root, dirs, files in os.walk(base):
+        for cur_root, dirs, files in walk(base):
             dirs[:] = [d for d in sorted(dirs) if d not in ARTIFACT_SKIP and not d.startswith(("冻结存档-", "_prev_", "_旧版", "_废弃"))]
             cur_path = Path(cur_root)
             rel_depth = len(cur_path.relative_to(base).parts)
@@ -964,7 +1011,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             return False
         if require_same_origin:
             origin = self.headers.get("Origin") or ""
-            if origin and not origin.startswith(("http://127.0.0.1", "http://localhost")):
+            if origin and origin != "http://" + self.headers.get("Host", ""):
                 return False
         return True
 
@@ -998,6 +1045,33 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._send_html(DASHBOARD_DIR / "index.html")
             return
 
+        if parsed.path == '/api/jobs':
+            project = _validate_project_name((params.get('project') or [''])[0])
+            if not project:
+                self._send_json({'error':'unknown project'},404)
+            else:
+                self._send_json(job_status.snapshot(project,(params.get('q') or [''])[0]))
+            return
+
+        if parsed.path == '/api/running':
+            project = _validate_project_name((params.get('project') or [''])[0])
+            if not project:
+                self._send_json({'error':'unknown project'},404)
+                return
+            directory = project/'_dispatch/running'
+            logs = []
+            if directory.resolve() == directory:
+                for path in sorted(directory.glob('*.log')):
+                    if path.is_symlink() or not path.is_file(): continue
+                    try:
+                        with path.open('rb') as handle:
+                            handle.seek(max(0,os.fstat(handle.fileno()).st_size-16384))
+                            logs.append({'job_id':path.stem,'tail':handle.read(16384).decode('utf-8','replace')})
+                    except FileNotFoundError:
+                        pass
+            self._send_json({'jobs':logs})
+            return
+
         if parsed.path == "/api/overview":
             self._send_json(build_overview_payload())
             return
@@ -1028,7 +1102,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": "Invalid project or path"}, HTTPStatus.BAD_REQUEST)
                 return
             candidate = proj_dir / rel_path
-            if not _is_within(candidate, proj_dir) or not candidate.is_file():
+            if protected(candidate) or not _is_within(candidate, proj_dir) or not candidate.is_file():
                 self._send_json({"error": "File not found or out of project scope"}, HTTPStatus.NOT_FOUND)
                 return
             self._send_json({
@@ -1088,8 +1162,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": "Invalid project or path"}, HTTPStatus.BAD_REQUEST)
                 return
             candidate = (proj_dir / rel_path).resolve()
-            if not _is_within(candidate, proj_dir) or not candidate.is_file():
+            if protected(candidate) or not _is_within(candidate, proj_dir) or not candidate.is_file():
                 self._send_json({"error": "File not found"}, HTTPStatus.NOT_FOUND)
+                return
+            if candidate.relative_to(proj_dir).parts[0] not in ('02_实验与验证','04_组会与周报_Weekly'):
+                self._send_json({'error':'outside gallery'},403)
                 return
             ext = candidate.suffix.lower()
             if ext not in ARTIFACT_EXTS:
@@ -1102,6 +1179,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
             ctype, _ = mimetypes.guess_type(str(candidate))
             body = candidate.read_bytes()
             self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Security-Policy", "sandbox; default-src 'none'; style-src 'unsafe-inline'")
+            self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Content-Type", ctype or "application/octet-stream")
             self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", str(len(body)))
@@ -1150,6 +1229,8 @@ def main() -> int:
 
     server = ThreadingHTTPServer(("127.0.0.1", args.port), DashboardHandler)
     print(f"[ResearchHub Dashboard v2] Listening on http://127.0.0.1:{args.port}/", flush=True)
+    from service_reload import reload_changed
+    server.service_actions = reload_changed
     try:
         server.serve_forever()
     except KeyboardInterrupt:
