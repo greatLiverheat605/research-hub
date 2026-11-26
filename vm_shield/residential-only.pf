@@ -1,0 +1,17 @@
+# HISTORICAL REVIEW TEMPLATE: not used by the chosen two-VM implementation.
+# The current network boundary is the separate Linux gateway's residential.nft.
+# REVIEW TEMPLATE: standalone policy for a DEDICATED macOS guest only.
+# Not loaded automatically. Do not replace a normal host's PF configuration with it.
+# Do not call this an enforced kill switch until activation/state handling is verified.
+# Static addressing/preconfigured routing assumed: no DHCP or shared-host forwarding.
+# Existing PF states and rules must be reconciled before protected apps can start.
+
+set block-policy drop
+set skip on lo0
+
+# Both IPv4 and IPv6, all interfaces, including newly appearing interfaces.
+block drop all
+
+# Only the encrypted TCP connection to the specified residential SS relay is allowed.
+# TCP replies/related control traffic are handled by PF's connection state tracking.
+pass out quick inet proto tcp from any to 198.51.100.24 port 26333 flags S/SA keep state

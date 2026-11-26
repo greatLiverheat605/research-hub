@@ -1,0 +1,58 @@
+#!/usr/sbin/nft -f
+# Dedicated Linux gateway ONLY. Must never replace the host Mac's networking.
+# The app VM has ONLY a private LAN connection to this gateway, no NAT/bridge NIC.
+# Interface names must be assigned by stable MAC address during gateway provisioning.
+
+flush ruleset
+
+table inet residential {
+    chain forward {
+        type filter hook forward priority filter; policy drop;
+
+        ct state invalid drop
+        iifname "lan0" oifname "wan0" ip saddr 10.77.0.0/24 \
+            ip daddr 198.51.100.24 tcp dport 26333 ct state new,established counter accept
+        iifname "wan0" oifname "lan0" ip saddr 198.51.100.24 tcp sport 26333 ip daddr 10.77.0.0/24 \
+            ct state established,related counter accept
+        # All other forwarding, including IPv6 and DNS, remains blocked.
+        counter drop
+    }
+
+    chain input {
+        type filter hook input priority filter; policy drop;
+        iifname "lo" accept
+        ct state invalid drop
+        # Allow the gateway's own response traffic only via its WAN.
+        iifname "wan0" ct state established,related accept
+        # LAN DHCP only. No DNS server, HTTP proxy, SSH forwarding, or SOCKS service.
+        iifname "lan0" udp sport 68 udp dport 67 accept
+        # WAN DHCP client lease replies; static WAN addressing can omit this rule.
+        iifname "wan0" udp sport 67 udp dport 68 accept
+    }
+
+    chain output {
+        type filter hook output priority filter; policy drop;
+        # The gateway's own sockets may not open connections. Its WAN is the
+        # host's NAT, so an accept policy would let a compromised gateway reach
+        # services listening on the host Mac or its LAN. Forwarded app-VM
+        # traffic does not traverse this hook and is governed by `forward`.
+        oifname "lo" accept
+        ct state invalid drop
+        # LAN DHCP server replies to the app VM.
+        oifname "lan0" udp sport 67 udp dport 68 accept
+        # WAN DHCP client renewals; initial discovery uses packet sockets.
+        oifname "wan0" udp sport 68 udp dport 67 accept
+        # ICMP errors (e.g. path MTU) for already-permitted forwarded relay flows.
+        oifname "lan0" ip daddr 10.77.0.0/24 meta l4proto icmp ct state related accept
+        oifname "wan0" ip daddr 198.51.100.24 meta l4proto icmp ct state related accept
+        counter drop
+    }
+}
+
+table ip residential_nat {
+    chain postrouting {
+        type nat hook postrouting priority srcnat; policy accept;
+        oifname "wan0" ip saddr 10.77.0.0/24 ip daddr 198.51.100.24 \
+            tcp dport 26333 masquerade
+    }
+}

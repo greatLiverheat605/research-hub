@@ -1,0 +1,22 @@
+[Unit]
+Description=Supervise the dedicated residential gateway and fail closed
+Wants=network-online.target
+After=systemd-sysctl.service network-online.target
+
+[Service]
+Type=notify
+NotifyAccess=main
+# Every entry point verifies Linux/root and the gateway's fixed WAN/LAN MACs.
+ExecStartPre=/usr/bin/python3 /etc/claudeshield/gateway-integrity.py --stop-forwarding
+ExecStartPre=/usr/bin/test ! -e /etc/claudeshield/deployment-incomplete
+ExecStart=/usr/bin/python3 /etc/claudeshield/gateway-integrity.py --serve
+ExecStopPost=/usr/bin/python3 /etc/claudeshield/gateway-integrity.py --stop-forwarding
+WatchdogSec=20s
+WatchdogSignal=SIGABRT
+TimeoutStartSec=180s
+TimeoutStopSec=10s
+KillMode=control-group
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

@@ -114,6 +114,19 @@ flowchart LR
    - **受控纯文本剪贴板**：关闭主客机自动剪贴板同步，仅允许宿主机主动拨号传输 `<=256 KiB` 纯文本；客机文本取回宿主机前强制弹窗预览确认，防止恶意多行命令注入宿主机。
    - **出口环境与时区对齐**：客机保持与美区静态住宅 IP 一致的 `America/Los_Angeles (PST/PDT)` 时区与语言指纹；宿主机调度器与大屏在任务回执层自动执行 **北京时间（`UTC+8`）↔ 虚拟机洛城时间（`PST/PDT`）** 双时区对齐。
 
+#### 虚拟机硬件规格与 `vm_shield/` 配置文件清单（已脱敏收录入库）：
+
+| 组件 / 文件路径 | 硬件 / 核心配置参数 | 安全职责说明 |
+|---|---|---|
+| [`vm_shield/VMCoordinator.swift`](vm_shield/VMCoordinator.swift) | **macOS 客机**：`6 vCPU` / `12 GiB RAM` / `1920×1200 (110 PPI)` / 唯一网卡 `en0` (`52:54:00:77:00:03`, `socketpair`)<br/>**Linux 网关机**：`2 vCPU` / `1 GiB RAM` / `wan0` (`52:54:00:77:00:01`, `VZNAT`) + `lan0` (`52:54:00:77:00:02`, `socketpair`) | Apple `Virtualization.framework` 双 VM 编排器：创建 `AF_UNIX SOCK_DGRAM` 私有网卡对（`SNDBUF=64KiB / RCVBUF=256KiB`）、生成每次启动唯一 `CSRUN.iso` 挑战盘，强制网关自检通过后才启动 macOS 客机 |
+| [`vm_shield/GatewayReadiness.swift`](vm_shield/GatewayReadiness.swift) & [`vm_shield/gateway-integrity.py`](vm_shield/gateway-integrity.py) | 绑定 `run_id`、`boot_id`、`gateway_bundle_sha256` 与 `nftables` 内核规则树校验 | 网关开机与运行期完整性看门狗（`WatchdogSec=20s`）：任何规则漂移或自检失败立即执行 `--stop-forwarding` 切断转发 |
+| [`vm_shield/gateway/residential.nft`](vm_shield/gateway/residential.nft) & [`90-residential.conf`](vm_shield/gateway/90-residential.conf) | `net.ipv4.ip_forward=0` 默认关闭；`forward / input / output` 默认 `policy drop` | Linux 网关 `nftables` 硬件级熔断规则：仅放行 `10.77.0.0/24 -> <RELAY_IPV4>:<PORT>` 的 TCP 流量，其余 TCP/UDP/DNS/IPv6 全部物理 `DROP` |
+| [`vm_shield/gateway/dnsmasq-lan.conf`](vm_shield/gateway/dnsmasq-lan.conf) & [`residential-gateway.service`](vm_shield/gateway/residential-gateway.service) | 仅提供 `10.77.0.10–10.77.0.20` (`255.255.255.0`) 纯 DHCP，关闭网关 DNS (`port=0`) | 为 macOS 客机 `en0` 分配私有内网地址，不在网关暴露任何 DNS、HTTP 或 SSH 转发面 |
+| [`vm_shield/mihomo.residential-only.js`](vm_shield/mihomo.residential-only.js) & [`build-residential-config.rb`](vm_shield/build-residential-config.rb) | `tun.stack=gvisor`, `mtu=1380`, `strict-route=true`, `ipv6=false`, `listen=127.0.0.1:53` (`fake-ip 198.18.0.1/16`), `mixed=127.0.0.1:7894` | 客机单住宅节点配置生成器：白名单构造唯一 SS-2022 节点，剥离一切 `DIRECT`/`fallback`/`providers`，首条 `NETWORK,udp,REJECT` + 拦截 `push/ess/xp.apple.com` |
+| [`vm_shield/guest-network-common.sh`](vm_shield/guest-network-common.sh) & [`repair-guest-network.sh`](vm_shield/repair-guest-network.sh) & [`guest-config-check.rb`](vm_shield/guest-config-check.rb) | 守护进程 `local.claudeshield.residential` + `sandbox-exec (deny network*)` 离线配置预检 | 客机内事务化网络部署与修复：带互斥锁、合成 DNS (`198.18.x.x`) 探针自检，任何一步异常自动回滚 IP/DNS/MTU 与服务状态 |
+| [`vm_shield/ClipboardWire.swift`](vm_shield/ClipboardWire.swift) & [`ClipboardGuest.swift`](vm_shield/ClipboardGuest.swift) & [`ControlPanel.swift`](vm_shield/ControlPanel.swift) | `VZVirtioSocketDevice`（无 IP/以太网协议栈），单次上限 `256 KiB` | 宿主主动拨号的受控纯文本剪贴板通道：客机取回宿主前强制在 320px 侧边控制栏弹窗预览确认，拦截隐藏控制字符与多行命令偷渡 |
+| [`vm_shield/AppLauncher.swift`](vm_shield/AppLauncher.swift) & [`GuestShareAudit.swift`](vm_shield/GuestShareAudit.swift) | 独立 Profile、禁 QUIC (`--disable-quic`)、WebRTC 仅走代理；VirtioFS 挂载点无软硬链接审计 | 客机受控浏览器/应用启动器与共享目录挂载前安全审计 |
+
 ### 2. 严禁 OAuth 逆向反代（Official Client Only Policy）
 - **Claude 与 Antigravity (Gemini) 均只使用官方原生客户端**：
   - 严禁将 Claude Desktop 或 Antigravity 的 OAuth 登录凭证挂载到 `cli2api`、第三方反代网关或非官方自动化脚本中。

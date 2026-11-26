@@ -67,6 +67,23 @@ flowchart TB
 research-hub/
 ├── ARCHITECTURE_AND_SECURITY.md # 整体系统架构图、虚拟机安全隔离与故障修复白皮书
 ├── README.md                    # 项目总览与快速开始
+├── vm_shield/                   # 🛡️ ClaudeShield 双虚拟机物理隔离与静态住宅网络完整源码及配置
+│   ├── VMCoordinator.swift      # Apple Virtualization.framework 双 VM (macOS 客机 + Linux 网关) 编排器
+│   ├── GatewayReadiness.swift   # 网关 CSRUN 挑战盘与启动完整性校验器
+│   ├── ClipboardWire.swift      # VZVirtioSocketDevice 受控单向纯文本剪贴板协议
+│   ├── ControlPanel.swift       # 宿主机侧边栏安全状态监控与剪贴板人工确认面板
+│   ├── AppLauncher.swift        # 客机防泄漏启动器 (禁 QUIC / 限制非代理 WebRTC UDP)
+│   ├── mihomo.residential-only.js # 客机唯一静态住宅节点 TUN 配置生成器 (gVisor + Fake-IP + 禁 UDP/IPv6)
+│   ├── guest-network-common.sh  # 客机事务化网络部署、离线沙盒预检与原子回滚引擎
+│   ├── repair-guest-network.sh  # 客机网络自愈脚本
+│   ├── guest-config-check.rb    # 客机网络状态与 YAML 语义合规审计器
+│   ├── gateway-integrity.py     # Linux 网关看门狗与转发熔断守护脚本
+│   ├── gateway-offline-test.py  # 网关开启转发前的离线 Network Namespace 穿透自检
+│   └── gateway/                 # Linux 网关虚拟机防火墙与系统服务配置
+│       ├── residential.nft      # nftables 严格白名单规则 (默认 DROP，仅放行唯一中转 TCP 端口)
+│       ├── residential-gateway.service # Fail-Closed systemd 守护单元 (异常立即关闭 ip_forward)
+│       ├── 90-residential.conf  # 内核 sysctl 配置 (默认禁 IPv4/IPv6 转发 + 软死锁 3s 自愈重启)
+│       └── dnsmasq-lan.conf     # 私有 SocketPair 内网 (10.77.0.0/24) 纯 DHCP 服务 (port=0 禁 DNS)
 ├── 00_全局中枢_Hub/
 │   ├── _project_template/       # 新课题标准模板（CLAUDE.md / GEMINI.md / _control / _bus / 01~04）
 │   ├── dashboard/               # 科研总控大屏与独立 /gitea 实时分支线 (serve.py + index.html)
