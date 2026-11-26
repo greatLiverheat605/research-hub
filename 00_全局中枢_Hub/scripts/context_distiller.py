@@ -11,6 +11,7 @@
 """
 
 import argparse
+import state_store
 import datetime
 import re
 import sys
@@ -100,7 +101,8 @@ def distill_project(proj_dir: Path, active_alerts: List[str] = None) -> Dict[str
     state = ctrl / "01_PROJECT_STATE.md"
     state_backup = arch / "01_PROJECT_STATE.full.md"
     if state.is_file():
-        raw_st = state.read_text(encoding="utf-8")
+        original = state.read_bytes()
+        raw_st = original.decode("utf-8")
         old_size = len(raw_st.encode("utf-8"))
         if not state_backup.is_file() or old_size > len(state_backup.read_bytes()):
             state_backup.write_text(raw_st, encoding="utf-8")
@@ -139,7 +141,7 @@ def distill_project(proj_dir: Path, active_alerts: List[str] = None) -> Dict[str
         else:
             final_st = inbox_md + body
         final_st = neutralize_terms(final_st)
-        state.write_text(final_st, encoding="utf-8")
+        state_store.publish(state.parent.parent, state_store.digest(original), final_st.encode())
         stats["01_PROJECT_STATE.md"] = (old_size, len(final_st.encode("utf-8")))
 
     # 3. 蒸馏 03_WORK_LOG.md（冷日志只保留最近 30 行）

@@ -14,6 +14,7 @@ import os
 import re
 import sys
 from pathlib import Path
+import state_store
 from typing import Any, Dict, List
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -41,9 +42,8 @@ def _save_queue(items: List[Dict[str, Any]]) -> None:
 
 def _update_project_inbox(project_dir: Path, bullet_line: str, remove_pattern: str = "") -> None:
     state_file = project_dir / "_control" / "01_PROJECT_STATE.md"
-    if not state_file.is_file():
-        return
-    text = state_file.read_text(encoding="utf-8")
+    original = state_file.read_bytes()
+    text = original.decode("utf-8")
     lines = text.splitlines()
     if remove_pattern:
         lines = [ln for ln in lines if remove_pattern not in ln]
@@ -61,9 +61,7 @@ def _update_project_inbox(project_dir: Path, bullet_line: str, remove_pattern: s
             break
     if not inserted:
         lines.insert(0, f"## 🚨 待汇报与未闭环事项收件箱\n{bullet_line}\n")
-    tmp = state_file.with_suffix(".tmp")
-    tmp.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    os.replace(tmp, state_file)
+    state_store.publish(project_dir, state_store.digest(original), ("\n".join(lines) + "\n").encode())
 
 
 def enqueue_request(
@@ -150,7 +148,7 @@ def complete_request(project_name: str, summary: str, reply_content: str, delive
 
     now = datetime.datetime.now()
     ts_human = now.strftime("%Y-%m-%d %H:%M:%S")
-    ts_slug = now.strftime("%Y%m%d-%H%M%S")
+    ts_slug = now.strftime("%Y%m%d-%H%M%S-%f")
 
     bus_dir = project_dir / "_bus"
     archive_dir = bus_dir / "archive"
@@ -186,7 +184,7 @@ def complete_request(project_name: str, summary: str, reply_content: str, delive
     deliv_note = f" 及 `{deliverable_rel}`" if deliverable_rel else ""
     _update_project_inbox(
         project_dir,
-        f"- [ ] **✅ 宿主机深度调研回执已就绪（{ts_human}）**：{summary}。请立即读取 `_bus/scout_reply.md`{deliv_note} 并用大白话向 PI 汇报！",
+        f"- [ ] **✅ 宿主机深度调研回执已就绪（{ts_human}）**：{summary}。请立即读取 `_bus/archive/{ts_slug}_scout_reply.md`{deliv_note} 并用大白话向 PI 汇报！",
         remove_pattern="宿主机深度调研",
     )
     return reply_file

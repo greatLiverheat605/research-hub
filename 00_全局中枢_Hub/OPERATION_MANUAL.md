@@ -22,7 +22,7 @@
 
 ### 2.1 在虚拟机内：配置 Claude Desktop 本地 `filesystem` MCP（零 Node 依赖、保护只读区）
 1. 因隔离虚拟机内通常未安装 Node.js / `npx`，请直接使用中枢提供的**纯 Python 3 本地 MCP 服务端**（`00_全局中枢_Hub/scripts/mcp_filesystem_server.py`，内置禁止写入 `00_全局中枢_Hub/`、`99_历史归档_Archive/`、`冻结件/` 与 `冻结存档-*` 的硬性保护）：
-   - 在虚拟机内将 `mcp_filesystem_server.py` 复制到 `~/Library/Application Support/Claude/mcp_filesystem_server.py`（`chmod 755`）；
+   - 在已配置的客机运行下文的 `install_guest_state.sh`，或在首次配置时将 `mcp_filesystem_server.py` 与 `state_client.py` 一同复制到 `~/Library/Application Support/Claude/`；
    - 在 `~/Library/Application Support/Claude/claude_desktop_config.json` 配置：
      ```json
      {
@@ -85,28 +85,12 @@
 - Claude 写好实验脚本后，会保存到当前课题的 `03_代码与脚本/`（或对应实验目录），并告诉你脚本路径。
 - 你切到宿主机 **Pebrel 终端**，手动回车运行该 Python 脚本（或把脚本放到 Colab 跑），把终端日志/结果保存回共享区，然后告诉 Claude：*“跑完了，结果在 `...`，请分析并更新 `_control/01_PROJECT_STATE.md`。”*
 
-### 场景 B：20% 关键门禁会诊（呼叫 DeepSeek 红队 / GPT 顾问）
-1. **在虚拟机 Claude Desktop 说**：
-   > *“准备进行门禁会诊，请把核心背景、数据边界与 2 个具体问题浓缩到 1500 字以内，写入 `_bus/ask.md`。”*
-2. **切到宿主机 Pebrel 终端手动点火**（进入当前课题目录，或加 `--project` 参数）：
-   ```bash
-   # 先预览发送给谁、读了多少字、走哪个模型（0 消耗，推荐习惯性先瞄一眼）
-   consult all --dry-run
+### 场景 B：按本轮请求编号会诊
 
-   # 只请 DeepSeek 红队挑刺（API 模型 ID: deepseek-flash）
-   consult redteam
-
-   # 只请本机 GPT 首席顾问深度裁决（可加 --effort xhigh）
-   consult advisor
-
-   # 顺序实时流式呼叫 GPT 顾问 + DeepSeek 红队（如需静默并发加 --no-stream）
-   consult all
-   ```
-   *(如果想临时切其他模型做一次对比，无需改配置文件：`consult redteam --model deepseek-v4-pro`；`all` 模式下请写 `--model redteam=deepseek-v4-pro`。)*
-3. **回虚拟机 Claude Desktop 收口拍板**：
-   你只需要告诉 Claude 一句话：
-   > *“会诊回执已到，请读取 `_bus/reply.md`，对照 `_control/02_DECISION_LEDGER.md` 过滤越权或无效建议，向我汇报 A/B 选项。”*
-   你回复 **“选 A”** 或 **“选 B”** 后，Claude 将新决定记入 `02_DECISION_LEDGER.md` 并推进执行。
+1. Claude 为每一轮生成新的 `consult_id`，把问题写入 `_bus/requests/<consult_id>.md`，提供带实际编号的点火命令。
+2. 在课题目录执行 `consult all --consult-id 实际编号`。选择一位专家时将 `all` 替换为 `advisor` 或 `redteam`。追加 `--dry-run` 可先预览。
+3. Claude 从 `_bus/archive/<consult_id>_reply.md` 读取本轮结果，核对回执 ID 和请求 SHA256，结合决策台账向 PI 呈报选项。
+4. 对已写入 `_bus/ask.md` 的旧请求，原来的点火命令仍可用。宿主机会生成唯一编号并输出该轮归档路径，将这个路径交给 Claude。
 
 ### 场景 C：使用 Gemini 4 文献阅读与宿主机辅佐（100% 零封号方案）
 - **红线**：**绝对不要**把 Gemini CLI / Antigravity 的 OAuth 登录态挂进任何第三方反代或 `cli2api`。
@@ -118,7 +102,7 @@
 ppt --topic "<汇报主题>" --project "<课题目录名>"
 # 可选参数：--dir <已有周报子目录>（接续迭代同一份 PPT） | --effort off|low|medium|high
 ```
-- **纯文本润色或表格清洗**（写入 `_bus/reply.md`）：可用 `consult glm_fast`。
+- **纯文本润色或表格清洗**可用 `consult glm_fast --consult-id 实际编号`，从同一编号的归档读取结果。
 
 ---
 
@@ -225,3 +209,22 @@ checkms --file "01_在研课题_Projects/<课题目录名>/02_实验与验证/<�
 | **GLM (`ppt` / `glm_heavy`·`glm_fast`)** | 1. 周报大纲与逐页讲稿改用 `consult redteam` 或直接让主控读取 `04_组会与周报_Weekly/README_周报写入规范.md` 生成；<br>2. 仍可用本地 `python-pptx` + `checkms`（0 API 消耗）完成排版与质检。 | GLM 恢复后继续用 `ppt --topic "..."` 迭代幻灯片。 |
 
 > **零额度永远能做的事**：本地/Colab 实验调度与监控（`runnotify` / `colab` / `watchdone`）、文稿红线质检（`checkms`）、终端排版阅读（`mdview`）与总控大屏（`dash`）**全程 0 模型额度消耗**。
+
+
+## 跨机状态发布与回溯
+
+在项目根目录运行以下命令。`HUB` 指向交换卷中的 `00_全局中枢_Hub`。草稿放在独立文件里，`BASE` 来自编辑开始时的读取，`NEW` 来自本轮 SUCCESS 回执的 `sha256`。
+
+```sh
+python3 "$HUB/scripts/state_client.py" read "$PWD"
+python3 "$HUB/scripts/state_client.py" submit "$PWD" --sha256 "$BASE" --draft "$DRAFT"
+python3 "$HUB/scripts/state_client.py" verify "$PWD" --sha256 "$NEW"
+```
+
+文件工具也支持投递 JSON 工单，字段为 `job_id`、`action`（`state_commit`）、`base_sha256`、`content`。沿用调度队列的临时文件改名投递约定。宿主机在 `~/.local/state/researchhub/project-state/` 按项目保存前后版本、锁和中断记录。需要恢复时，先核对快照及原件哈希，再在宿主机运行以下命令，然后让接收端核对恢复版本。
+
+```sh
+python3 "$HUB/scripts/state_store.py" restore "$PWD" "$SNAPSHOT_SHA" "$CURRENT_SHA"
+```
+
+客机独立安装的 MCP 通过 `sh "$HUB/scripts/install_guest_state.sh"` 更新。安装器先保存当前客机副本，再安装本地程序。重新打开 Claude Desktop 后，可使用状态专用的读取和提交工具。常规会诊以 `_bus/archive/<consult_id>_reply.md` 及内含的请求哈希为准。
