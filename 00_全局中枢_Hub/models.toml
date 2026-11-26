@@ -56,9 +56,9 @@ wire_api = "responses"
 base_url = "https://token.bigfish.space"
 api_key_env = "OPENAI_API_KEY"
 # "auto" 表示自动使用本机 cc-switch 当前激活的 Codex 模型（如 gpt-6.2-astra）；
-# 也可直接填写 "gpt-6.1-sol" / "gpt-5.6-high" / "gpt-5.5-pro" / "gpt-5.3-codex-high" 等强制指定：
+# 注：中转站网关有 600s 流式超时上限，max/ultra 档位思考常超 600s 被网关掐断导致 0 字空回执，故默认锁定黄金稳定档 "high"（约 60~90s 稳定出全稿）
 model = "auto"
-reasoning_effort = "max"
+reasoning_effort = "high"
 temperature = 0.2
 system_prompt = """
 你是本课题的首席科学顾问（Chief Scientific Advisor）。你没有直接修改项目源码和台账的权限，

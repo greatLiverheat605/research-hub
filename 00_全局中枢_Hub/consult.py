@@ -559,7 +559,7 @@ def _build_request_body(runtime: Dict[str, Any], user_prompt: str, stream: bool,
         }
         if include_effort and effort not in ("default", "off"):
             wire_effort = "max" if effort == "ultra" else effort
-            body["reasoning"] = {"effort": wire_effort}
+            body["reasoning"] = {"effort": wire_effort, "summary": "auto"}
         return body
 
     body = {
@@ -627,12 +627,25 @@ def _stream_sse_response(
                 sys.stdout.write(delta)
             sys.stdout.flush()
 
+    import time
+    t_start = time.time()
+    heartbeat_cnt = 0
     while True:
         raw_line = resp.readline()
         if not raw_line:
             break
         line = raw_line.decode("utf-8", errors="replace").strip()
-        if not line or not line.startswith("data:"):
+        if not line:
+            continue
+        if line.startswith(":"):
+            heartbeat_cnt += 1
+            if live_print and phase is None:
+                el = int(time.time() - t_start)
+                msg = f"\r🧠 [{role_label} | {model_name}] 云端深度推理中... 已耗时 {el}s (收到服务端流式心跳 #{heartbeat_cnt})"
+                sys.stdout.write(f"\033[2;36m{msg}\033[0m" if is_tty else msg + "\n")
+                sys.stdout.flush()
+            continue
+        if not line.startswith("data:"):
             continue
         payload_str = line[5:].strip()
         if not payload_str or payload_str == "[DONE]":
@@ -644,7 +657,12 @@ def _stream_sse_response(
 
         if wire_api == "responses":
             etype = evt.get("type", "")
-            if etype in ("response.reasoning_summary_text.delta", "response.reasoning_text.delta") and isinstance(evt.get("delta"), str):
+            if etype in ("response.created", "response.in_progress") and live_print and phase is None:
+                el = int(time.time() - t_start)
+                msg = f"\r🧠 [{role_label} | {model_name}] 已建立连接并启动深度推理 ({etype}, {el}s)..."
+                sys.stdout.write(f"\033[2;36m{msg}\033[0m" if is_tty else msg + "\n")
+                sys.stdout.flush()
+            elif etype in ("response.reasoning_summary_text.delta", "response.reasoning_text.delta", "response.reasoning.delta") and isinstance(evt.get("delta"), str):
                 _emit_delta("thinking", evt["delta"])
             elif etype == "response.output_text.delta" and isinstance(evt.get("delta"), str):
                 _emit_delta("answer", evt["delta"])
@@ -766,6 +784,18 @@ def call_role_api(runtime: Dict[str, Any], user_prompt: str, stream: bool = True
                                 reasoning, text = _extract_chat_json_parts(parsed)
 
                 elapsed = round((datetime.datetime.now() - started).total_seconds(), 2)
+                if not text.strip():
+                    cur_eff = str(runtime.get("reasoning_effort") or "").lower()
+                    if cur_eff in ("ultra", "max", "xhigh") and attempt + 1 < max_attempts:
+                        runtime["reasoning_effort"] = "high"
+                        print(
+                            f"\n⚠️ [{runtime['role']}] 档位 {cur_eff} 思考超过网关 600s 上限被断开 (耗时 {elapsed}s, 0 字正文)，自动降级至稳定档位 high 重试...",
+                            flush=True,
+                        )
+                        last_err = RuntimeError(f"档位 {cur_eff} 思考超时被网关截断 (0 字正文)")
+                        break
+                    raise RuntimeError(f"上游流式连接在输出正文前被网关断开 (耗时 {elapsed}s, 0 字产出)")
+
                 if stream:
                     print(
                         f"✅ [{runtime['role']}] 完成 | 耗时: {elapsed}s | 档位: {runtime['reasoning_effort']} | "
