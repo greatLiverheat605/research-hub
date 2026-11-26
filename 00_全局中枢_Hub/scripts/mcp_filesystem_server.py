@@ -114,17 +114,31 @@ class PathGuard:
 
 
 def _open_nocache_text(resolved_path):
-    """Open file with macOS F_NOCACHE (48) to bypass stale VirtioFS guest UBC page cache."""
+    """Open file with macOS XNU msync(MS_INVALIDATE) + F_NOCACHE (48) to purge stale VirtioFS guest UBC page cache."""
+    import ctypes as _ctypes
+    import ctypes.util as _cutil
     import fcntl as _fcntl
     F_NOCACHE = getattr(_fcntl, "F_NOCACHE", 48)
-    try:
-        os.listdir(os.path.dirname(resolved_path))
-    except OSError:
-        pass
     fd = os.open(resolved_path, os.O_RDONLY)
     try:
         _fcntl.fcntl(fd, F_NOCACHE, 1)
     except OSError:
+        pass
+    try:
+        sz = os.fstat(fd).st_size
+        if sz > 0:
+            libc = _ctypes.CDLL(_cutil.find_library("c"), use_errno=True)
+            libc.mmap.argtypes = [_ctypes.c_void_p, _ctypes.c_size_t, _ctypes.c_int, _ctypes.c_int, _ctypes.c_int, _ctypes.c_longlong]
+            libc.mmap.restype = _ctypes.c_void_p
+            libc.msync.argtypes = [_ctypes.c_void_p, _ctypes.c_size_t, _ctypes.c_int]
+            libc.msync.restype = _ctypes.c_int
+            libc.munmap.argtypes = [_ctypes.c_void_p, _ctypes.c_size_t]
+            libc.munmap.restype = _ctypes.c_int
+            addr = libc.mmap(None, sz, 0x01, 0x0001, fd, 0)
+            if addr and addr != _ctypes.c_void_p(-1).value:
+                libc.msync(_ctypes.c_void_p(addr), sz, 0x0002)
+                libc.munmap(_ctypes.c_void_p(addr), sz)
+    except Exception:
         pass
     return os.fdopen(fd, "r", encoding="utf-8", errors="replace")
 

@@ -1,5 +1,7 @@
-"""Read a project state (with VirtioFS F_NOCACHE & content-addressed self-healing) or enqueue a host commit."""
+"""Read a project state (with XNU msync(MS_INVALIDATE) + F_NOCACHE + .state_cache self-healing) or enqueue a host commit."""
 import argparse
+import ctypes
+import ctypes.util
 import fcntl
 import hashlib
 import json
@@ -12,21 +14,45 @@ import uuid
 STATE = Path('_control/01_PROJECT_STATE.md')
 CACHE_DIR = Path('_control/.state_cache')
 F_NOCACHE = getattr(fcntl, 'F_NOCACHE', 48)
+PROT_READ = 0x01
+MAP_SHARED = 0x0001
+MS_INVALIDATE = 0x0002
+
+try:
+    _LIBC = ctypes.CDLL(ctypes.util.find_library('c'), use_errno=True)
+    _LIBC.mmap.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_longlong]
+    _LIBC.mmap.restype = ctypes.c_void_p
+    _LIBC.msync.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_int]
+    _LIBC.msync.restype = ctypes.c_int
+    _LIBC.munmap.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
+    _LIBC.munmap.restype = ctypes.c_int
+except Exception:
+    _LIBC = None
+
+
+def invalidate_ubc_fd(fd: int) -> None:
+    """调用 macOS XNU 内核 msync(MS_INVALIDATE) 强制清空当前文件描述符对应 vnode 在客机内存中的 UBC 页缓存。"""
+    try:
+        fcntl.fcntl(fd, F_NOCACHE, 1)
+    except OSError:
+        pass
+    if _LIBC is None:
+        return
+    try:
+        sz = os.fstat(fd).st_size
+        if sz > 0:
+            addr = _LIBC.mmap(None, sz, PROT_READ, MAP_SHARED, fd, 0)
+            if addr and addr != ctypes.c_void_p(-1).value:
+                _LIBC.msync(ctypes.c_void_p(addr), sz, MS_INVALIDATE)
+                _LIBC.munmap(ctypes.c_void_p(addr), sz)
+    except Exception:
+        pass
 
 
 def _read_nocache(path: Path) -> bytes:
-    """在 macOS/VirtioFS 下强制开启 F_NOCACHE (48) 绕过客机 UBC 内存页缓存直读真实字节。"""
-    try:
-        # 触发父目录 readdir 刷新客机 dentry 缓存
-        os.listdir(path.parent)
-    except OSError:
-        pass
     fd = os.open(path, os.O_RDONLY)
     try:
-        try:
-            fcntl.fcntl(fd, F_NOCACHE, 1)
-        except OSError:
-            pass
+        invalidate_ubc_fd(fd)
         chunks = []
         while True:
             buf = os.read(fd, 65536)
@@ -39,22 +65,36 @@ def _read_nocache(path: Path) -> bytes:
 
 
 def _refresh_guest_ubc(path: Path, data: bytes) -> None:
-    """通过客机自身 VFS 写入通道刷新客机内核 UBC 页缓存，使客机普通 read_file 也立刻看到最新内容。"""
+    """通过客机自身 VFS 写入通道刷新客机内核 UBC 页缓存，同时保持原 Inode 不变。"""
     try:
         fd = os.open(path, os.O_RDWR | os.O_NOFOLLOW)
         try:
-            try:
-                fcntl.fcntl(fd, F_NOCACHE, 1)
-            except OSError:
-                pass
+            invalidate_ubc_fd(fd)
             os.lseek(fd, 0, os.SEEK_SET)
             os.write(fd, data)
             os.ftruncate(fd, len(data))
             os.fsync(fd)
+            invalidate_ubc_fd(fd)
         finally:
             os.close(fd)
     except OSError:
         pass
+
+
+def _latest_snapshot_in_cache(cache_root: Path) -> Path:
+    if not cache_root.is_dir():
+        return None
+    try:
+        md_files = [
+            cache_root / name
+            for name in os.listdir(cache_root)
+            if re.fullmatch(r'[a-f0-9]{64}\.md', name)
+        ]
+        if not md_files:
+            return None
+        return max(md_files, key=lambda p: p.stat().st_mtime_ns)
+    except OSError:
+        return None
 
 
 def read(project: Path, expected_sha256: str = None):
@@ -64,25 +104,28 @@ def read(project: Path, expected_sha256: str = None):
     data = _read_nocache(state_path)
     cur_sha = hashlib.sha256(data).hexdigest()
 
-    # 若指定了期望 sha256 或 _control/.state_cache/ 中已有宿主机最新发布的零缓存快照，自动核对并自愈客机缓存
-    target_sha = expected_sha256
-    if not target_sha:
-        latest_meta = cache_root / 'latest.json'
-        if latest_meta.is_file():
+    snap_file = None
+    if expected_sha256 and cur_sha != expected_sha256:
+        cand = cache_root / f'{expected_sha256}.md'
+        if cand.is_file():
+            snap_file = cand
+    if snap_file is None:
+        latest_snap = _latest_snapshot_in_cache(cache_root)
+        if latest_snap is not None and latest_snap.stem != cur_sha:
+            # 只有当 .state_cache 中最新快照比当前读到的内容更新时才触发自愈
             try:
-                meta = json.loads(_read_nocache(latest_meta).decode('utf-8'))
-                target_sha = meta.get('sha256')
-            except Exception:
-                target_sha = None
+                if latest_snap.stat().st_mtime_ns >= state_path.stat().st_mtime_ns - 2_000_000_000:
+                    snap_file = latest_snap
+            except OSError:
+                snap_file = latest_snap
 
-    if target_sha and cur_sha != target_sha:
-        snap_file = cache_root / f'{target_sha}.md'
-        if snap_file.is_file():
-            snap_data = _read_nocache(snap_file)
-            if hashlib.sha256(snap_data).hexdigest() == target_sha:
-                _refresh_guest_ubc(state_path, snap_data)
-                data = snap_data
-                cur_sha = target_sha
+    if snap_file is not None and snap_file.is_file():
+        snap_data = _read_nocache(snap_file)
+        snap_sha = hashlib.sha256(snap_data).hexdigest()
+        if snap_sha == snap_file.stem:
+            _refresh_guest_ubc(state_path, snap_data)
+            data = snap_data
+            cur_sha = snap_sha
 
     return {'sha256': cur_sha, 'bytes': len(data), 'content': data.decode('utf-8')}
 

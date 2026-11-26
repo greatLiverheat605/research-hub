@@ -1,4 +1,4 @@
-"""Host-only publisher for the project state file with VirtioFS UBC page-cache invalidation."""
+"""Host-only publisher for the project state file (in-place inode preservation + content-addressed .state_cache)."""
 import argparse
 import fcntl
 import hashlib
@@ -18,22 +18,19 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def durable(path: Path, data: bytes, mode: int = 0o644) -> int:
+def durable(path: Path, data: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(dir=path.parent, prefix='.rh_state_', delete=False) as tmp:
+    with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as tmp:
         try:
             tmp.write(data)
             tmp.flush()
-            os.fchmod(tmp.fileno(), mode)
             os.fsync(tmp.fileno())
-            ino = os.fstat(tmp.fileno()).st_ino
             os.replace(tmp.name, path)
             fd = os.open(path.parent, os.O_RDONLY)
             try:
                 os.fsync(fd)
             finally:
                 os.close(fd)
-            return ino
         finally:
             Path(tmp.name).unlink(missing_ok=True)
 
@@ -45,77 +42,42 @@ def storage(project: Path) -> Path:
     return folder
 
 
-def checkpoint(folder: Path, data: bytes) -> Path:
+def checkpoint(folder: Path, data: bytes) -> None:
     path = folder / (digest(data) + '.md')
     if not path.exists():
-        durable(path, data, mode=0o600)
+        durable(path, data)
     if path.read_bytes() != data:
         raise IOError('状态快照校验失败')
-    return path
 
 
-def _sync_Shared_with_inode_rotation(project: Path, path: Path, data: bytes) -> int:
-    """解决 macOS 虚拟机 VirtioFS 双层缓存问题：
-    1) 若原路径如果只原地覆写同一 Inode，客机 XNU 内核的 UBC (Unified Buffer Cache) 会沿用旧 vnode 的内存页，
-       仅调用 ubc_setsize 截断到新长度（导致读出 '旧内容[:新长度]' 的截断旧缓存，如 532d6240...）；
-    2) 若直接 os.replace 删掉旧 Inode，客机尚未过期的目录项缓存 (dentry) 指向已 unlink 的旧 Inode 时会报 ENOENT；
-    3) 根治方案：
-       a) 先在 _control/.state_cache/<sha256>.md 落盘零缓存内容寻址快照（新文件名在客机 100% 无历史缓存）；
-       b) 将旧 Inode 硬链接保活到 _control/.state_cache/.grace_<ino> 并同时原地写入新内容（防止过渡期旧 dentry 报 ENOENT 或读到旧字节）；
-       c) 用全新临时文件 (新 Inode) 原子替换 (os.replace) _control/01_PROJECT_STATE.md，强制客机 XNU 为新 Inode 分配全新 vnode（0 历史 UBC 页缓存）！
+def _write_project_state_cache(project: Path, data: bytes) -> None:
+    """在 _control/.state_cache/<sha256>.md 落盘零缓存内容寻址副件：
+    - 严禁在原路径 _control/01_PROJECT_STATE.md 上使用 os.replace（否则客机 VirtioFS namei 缓存指向被删旧 Inode 会报 FileNotFoundError）；
+    - 同时每次提交生成一个以新 <sha256>.md 命名的全新快照文件（新文件名在客机 100% 无历史 namei/UBC 缓存），供客机秒级校验与自愈。
     """
     sha = digest(data)
     cache_root = project / CACHE_DIR
     cache_root.mkdir(parents=True, exist_ok=True)
-
-    # a) 写入以哈希命名的零缓存快照（保留最近 12 个版本）
-    snap_in_project = cache_root / f'{sha}.md'
-    if not snap_in_project.exists() or snap_in_project.read_bytes() != data:
-        durable(snap_in_project, data, mode=0o644)
-
-    # b) 保活并同步旧 Inode，防止客机在 dentry 刷新窗口期访问旧 Inode 时遇到 ENOENT 或旧页
-    if path.exists() and not path.is_symlink():
-        try:
-            old_stat = path.stat()
-            grace_link = cache_root / f'.grace_{old_stat.st_ino}'
-            if not grace_link.exists():
-                try:
-                    os.link(path, grace_link)
-                except OSError:
-                    pass
-            with os.fdopen(os.open(path, os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK), 'r+b') as stream:
-                stream.seek(0)
-                stream.write(data)
-                stream.truncate()
-                stream.flush()
-                os.fsync(stream.fileno())
-        except OSError:
-            pass
-
-    # c) 原子切换到全新 Inode，强制客机 VirtioFS 丢弃旧 vnode 的 UBC 页缓存
-    new_ino = durable(path, data, mode=0o644)
-
-    # d) 写入最新状态指针文件（供客机 state_client / MCP 快速自检）
-    meta_bytes = json.dumps(
-        {'sha256': sha, 'bytes': len(data), 'inode': new_ino, 'updated_at': int(time.time())},
-        ensure_ascii=False,
-    ).encode('utf-8')
-    durable(cache_root / 'latest.json', meta_bytes, mode=0o644)
-
-    # e) 清理超过 8 个的历史保活硬链接与旧快照
+    snap = cache_root / f'{sha}.md'
+    if not snap.exists():
+        durable(snap, data)
     try:
-        graces = sorted(cache_root.glob('.grace_*'), key=lambda p: p.stat().st_mtime, reverse=True)
-        for old_g in graces[6:]:
-            old_g.unlink(missing_ok=True)
         snaps = sorted(cache_root.glob('*.md'), key=lambda p: p.stat().st_mtime, reverse=True)
-        for old_s in snaps[12:]:
+        for old_s in snaps[16:]:
             old_s.unlink(missing_ok=True)
     except OSError:
         pass
 
-    if path.read_bytes() != data:
+
+def overwrite(stream, data: bytes, path: Path) -> None:
+    stream.seek(0)
+    if stream.write(data) != len(data):
+        raise IOError('状态写入不完整')
+    stream.truncate()
+    stream.flush()
+    os.fsync(stream.fileno())
+    if not os.path.samestat(os.fstat(stream.fileno()), path.stat()) or path.read_bytes() != data:
         raise IOError('原路径读回校验失败')
-    return new_ino
 
 
 def publish(project, base, data, recover=False):
@@ -144,32 +106,27 @@ def publish(project, base, data, recover=False):
                 raise ValueError('版本冲突，请重读原件。当前 SHA-256 ' + observed)
             checkpoint(folder, old)
             checkpoint(folder, data)
-            durable(journal, json.dumps({'old': observed, 'new': digest(data)}).encode(), mode=0o600)
-
-        try:
-            new_ino = _sync_Shared_with_inode_rotation(project, path, data)
-        except Exception:
-            _sync_Shared_with_inode_rotation(project, path, old)
-            raise
-        journal.unlink(missing_ok=True)
-        return {'sha256': digest(data), 'bytes': len(data), 'inode': new_ino, 'previous_sha256': observed}
+            _write_project_state_cache(project, data)
+            if old != data:
+                durable(journal, json.dumps({'old': observed, 'new': digest(data)}).encode())
+                try:
+                    overwrite(stream, data, path)
+                except Exception:
+                    overwrite(stream, old, path)
+                    raise
+            journal.unlink(missing_ok=True)
+            return {'sha256': digest(data), 'bytes': len(data), 'inode': info.st_ino, 'previous_sha256': observed}
 
 
 def main():
-    parser = argparse.ArgumentParser(description='从宿主私有断点恢复项目状态或刷新 VirtioFS 缓存')
-    parser.add_argument('action', choices=['restore', 'refresh'])
+    parser = argparse.ArgumentParser(description='从宿主私有断点恢复项目状态')
+    parser.add_argument('action', choices=['restore'])
     parser.add_argument('project', type=Path)
-    parser.add_argument('snapshot_sha256', nargs='?')
-    parser.add_argument('current_sha256', nargs='?')
+    parser.add_argument('snapshot_sha256')
+    parser.add_argument('current_sha256')
     args = parser.parse_args()
-    if args.action == 'refresh':
-        proj = args.project.absolute()
-        path = proj / STATE
-        data = path.read_bytes()
-        print(json.dumps(publish(proj, digest(data), data, recover=True)))
-        return
     import re
-    if not args.snapshot_sha256 or not re.fullmatch('[a-f0-9]{64}', args.snapshot_sha256):
+    if not re.fullmatch('[a-f0-9]{64}', args.snapshot_sha256):
         parser.error('快照 SHA-256 无效')
     data = (storage(args.project.absolute()) / (args.snapshot_sha256 + '.md')).read_bytes()
     if digest(data) != args.snapshot_sha256:

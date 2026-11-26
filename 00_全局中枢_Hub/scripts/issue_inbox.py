@@ -23,59 +23,35 @@ def replace(path, text, mode=None):
 
 
 def publish_shared(path, text, state_root):
-    """向宿主机↔虚拟机共享卷发布固定路径文件（如 _bus/reply.md、MY_ISSUES_INBOX.md）：
-    1) 将旧 Inode 保活硬链接到 state_root/grace/ 并原地更新其内容（防止客机旧 dentry 报 ENOENT 或读到旧页）；
-    2) 用全新临时文件（新 Inode）通过 os.replace 替换目标路径，强制客机 VirtioFS 分配新 vnode 并丢弃旧 UBC 页缓存。
-    """
+    # A VirtioFS lookup retains the original inode in the guest VFS namei cache.
+    # Always update existing files in-place so the inode never becomes unlinked (avoiding Guest ENOENT).
     state_root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    grace_dir = path.parent / '.virtiofs_grace'
+    identity_file = state_root / ('inode-' + path.name + '.json')
     payload = text.encode('utf-8')
     if path.exists() and not path.is_symlink():
         try:
-            old_st = path.stat()
-            if old_st.st_size == len(payload) and path.read_bytes() == payload:
-                # 即使内容相同也无需重复写
-                pass
-            grace_dir.mkdir(parents=True, exist_ok=True)
-            grace_link = grace_dir / f'.grace_{path.name}_{old_st.st_ino}'
-            if not grace_link.exists():
-                try:
-                    os.link(path, grace_link)
-                except OSError:
-                    pass
-            with os.fdopen(os.open(path, os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK), 'r+b') as dest:
-                dest.seek(0)
-                dest.write(payload)
-                dest.truncate()
-                dest.flush()
-                os.fsync(dest.fileno())
-        except OSError:
-            pass
-
-    with tempfile.NamedTemporaryFile(dir=path.parent, prefix='.rh_pub_', delete=False) as tmp:
+            fd = os.open(path, os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK)
+        except FileNotFoundError:
+            fd = None
+        if fd is not None:
+            with os.fdopen(fd, 'r+b') as dest:
+                info = os.fstat(fd)
+                if stat.S_ISREG(info.st_mode):
+                    if dest.read() != payload:
+                        dest.seek(0)
+                        dest.write(payload)
+                        dest.truncate()
+                        dest.flush()
+                        os.fsync(fd)
+                    replace(identity_file, json.dumps([info.st_dev, info.st_ino]))
+                    return
+    with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as tmp:
         tmp.write(payload)
         tmp.flush()
         os.fchmod(tmp.fileno(), 0o644)
-        os.fsync(tmp.fileno())
         info = os.fstat(tmp.fileno())
     os.replace(tmp.name, path)
-    try:
-        fd = os.open(path.parent, os.O_RDONLY)
-        try:
-            os.fsync(fd)
-        finally:
-            os.close(fd)
-    except OSError:
-        pass
-    identity_file = state_root / ('inode-' + path.name + '.json')
     replace(identity_file, json.dumps([info.st_dev, info.st_ino]))
-    try:
-        if grace_dir.is_dir():
-            graces = sorted(grace_dir.glob(f'.grace_{path.name}_*'), key=lambda p: p.stat().st_mtime, reverse=True)
-            for old_g in graces[4:]:
-                old_g.unlink(missing_ok=True)
-    except OSError:
-        pass
 
 
 def pages(get, endpoint, expected=None):
