@@ -1,4 +1,5 @@
 """Read-only Gitea synchronization. Publish a snapshot only after all pages succeed."""
+import gitea_mail
 import fcntl
 import hashlib
 import json
@@ -22,34 +23,59 @@ def replace(path, text, mode=None):
 
 
 def publish_shared(path, text, state_root):
-    # A VirtioFS lookup can retain the original inode for the guest session.
-    # Only update an inode previously registered in the private host state.
-    identity_file = state_root / ('inode-' + path.name + '.json')
-    identity = json.loads(identity_file.read_text()) if identity_file.exists() else None
+    """向宿主机↔虚拟机共享卷发布固定路径文件（如 _bus/reply.md、MY_ISSUES_INBOX.md）：
+    1) 将旧 Inode 保活硬链接到 state_root/grace/ 并原地更新其内容（防止客机旧 dentry 报 ENOENT 或读到旧页）；
+    2) 用全新临时文件（新 Inode）通过 os.replace 替换目标路径，强制客机 VirtioFS 分配新 vnode 并丢弃旧 UBC 页缓存。
+    """
+    state_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    grace_dir = path.parent / '.virtiofs_grace'
     payload = text.encode('utf-8')
-    if identity is not None:
+    if path.exists() and not path.is_symlink():
         try:
-            fd = os.open(path, os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK)
-        except FileNotFoundError:
-            fd = None
-        if fd is not None:
-            with os.fdopen(fd, 'r+b') as dest:
-                info = os.fstat(fd)
-                if stat.S_ISREG(info.st_mode) and [info.st_dev, info.st_ino] == identity:
-                    if dest.read() != payload:
-                        dest.seek(0)
-                        dest.write(payload)
-                        dest.truncate()
-                        dest.flush()
-                        os.fsync(fd)
-                    return
-    with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as tmp:
+            old_st = path.stat()
+            if old_st.st_size == len(payload) and path.read_bytes() == payload:
+                # 即使内容相同也无需重复写
+                pass
+            grace_dir.mkdir(parents=True, exist_ok=True)
+            grace_link = grace_dir / f'.grace_{path.name}_{old_st.st_ino}'
+            if not grace_link.exists():
+                try:
+                    os.link(path, grace_link)
+                except OSError:
+                    pass
+            with os.fdopen(os.open(path, os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK), 'r+b') as dest:
+                dest.seek(0)
+                dest.write(payload)
+                dest.truncate()
+                dest.flush()
+                os.fsync(dest.fileno())
+        except OSError:
+            pass
+
+    with tempfile.NamedTemporaryFile(dir=path.parent, prefix='.rh_pub_', delete=False) as tmp:
         tmp.write(payload)
         tmp.flush()
         os.fchmod(tmp.fileno(), 0o644)
+        os.fsync(tmp.fileno())
         info = os.fstat(tmp.fileno())
     os.replace(tmp.name, path)
+    try:
+        fd = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    except OSError:
+        pass
+    identity_file = state_root / ('inode-' + path.name + '.json')
     replace(identity_file, json.dumps([info.st_dev, info.st_ino]))
+    try:
+        if grace_dir.is_dir():
+            graces = sorted(grace_dir.glob(f'.grace_{path.name}_*'), key=lambda p: p.stat().st_mtime, reverse=True)
+            for old_g in graces[4:]:
+                old_g.unlink(missing_ok=True)
+    except OSError:
+        pass
 
 
 def pages(get, endpoint, expected=None):
@@ -74,7 +100,7 @@ def pages(get, endpoint, expected=None):
 
 
 def recent_comments(records):
-    ordered = sorted(records, key=lambda r: (r[0], r[1]), reverse=True)
+    ordered = sorted(records, key=lambda r: (r[0], str(r[1])), reverse=True)
     lines = ['# 与丙相关的 Gitea 工单最新评论', '', '以下是协作者的消息原文。']
     for title, rows in [('负责人最近回复', [r for r in ordered if r[3].lower() == 'p02-lead'][:3]),
                         ('最近评论', ordered[:3])]:
@@ -114,7 +140,7 @@ def sync(folder, get, mine, user, notify, state_root, export=None, pr_report=Non
                 f"ISSUE-{num}",
                 num,
                 item['user']['login'],
-                f"**[工单正文 · {item.get('state','')}] {item.get('title','')}**\n\n" + str(item.get('body') or '')[:800],
+                f"**[工单正文 · {item.get('state','')}] {item.get('title','')}**\n\n" + str(item.get('body') or ''),
             ))
             for c in comments:
                 records.append((c.get('updated_at') or c.get('created_at') or '', c['id'], num, c['user']['login'], c.get('body') or ''))
@@ -125,8 +151,7 @@ def sync(folder, get, mine, user, notify, state_root, export=None, pr_report=Non
         for pr in pages(get, 'pulls?state=all'):
             pnum = str(int(pr['number']))
             pr_comments = sorted(pages(get, f'issues/{pnum}/comments'), key=lambda c: (c.get('created_at', ''), c['id']))
-            code_rv, raw_reviews = get(f'pulls/{pnum}/reviews')
-            reviews = raw_reviews if (code_rv == 200 and isinstance(raw_reviews, list)) else []
+            reviews = list(pages(get,f'pulls/{pnum}/reviews'))
             if not mine(pr) and not any(mine(dict(user=c.get('user'), body=c.get('body'))) for c in pr_comments) and not any(mine(dict(user=r.get('user'), body=r.get('body'))) for r in reviews):
                 continue
             head_sha = ((pr.get('head') or {}).get('sha') or '')[:10]
@@ -149,8 +174,9 @@ def sync(folder, get, mine, user, notify, state_root, export=None, pr_report=Non
                 rstate = rv.get('state', '')
                 rtime = rv.get('submitted_at') or rv.get('updated_at') or ''
                 rbody = (rv.get('body') or '').strip()
-                rc_code, r_inline = get(f'pulls/{pnum}/reviews/{rid}/comments')
-                inline_list = r_inline if (rc_code == 200 and isinstance(r_inline, list)) else []
+                inline_list = list(pages(get,f'pulls/{pnum}/reviews/{rid}/comments'))
+                for ic in inline_list:
+                    records.append((ic.get('updated_at') or ic.get('created_at') or rtime,f"INLINE-{ic['id']}",f'PR#{pnum}',(ic.get('user') or {}).get('login', ruser),f"{ic.get('path','')}:{ic.get('position','')}\n{ic.get('body','')}"))
                 lines.extend(['', f"#### [Review #{rid} · {rstate}] @{ruser} · {rtime} · commit `{str(rv.get('commit_id', ''))[:10]}`"])
                 if rbody:
                     lines.extend(['', rbody])
@@ -217,6 +243,8 @@ def sync(folder, get, mine, user, notify, state_root, export=None, pr_report=Non
                 replace(report_cache, pr_report)
             if report_cache.is_file():
                 publish_shared(folder/'PR_STATUS.md', digest + '\n' + report_cache.read_text(), state_root)
+        changed = gitea_mail.ingest(state_root, records, user)
+        alerts = sorted(set(alerts) | {('#'+n if n.isdigit() else n) for n in changed})
         if alerts: notify('、'.join(alerts))
         replace(state_path,json.dumps(state,sort_keys=True))
         return digest if export is not None else len(state)

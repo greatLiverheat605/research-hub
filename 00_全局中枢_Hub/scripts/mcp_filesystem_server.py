@@ -16,7 +16,7 @@ import stat
 import sys
 
 
-PROTECTED_DIR_NAMES = ("冻结存档-20261117", "冻结件", "99_历史归档_Archive", "00_全局中枢_Hub")
+PROTECTED_DIR_NAMES = ("benchmark", "冻结存档-20261117", "冻结件", "99_历史归档_Archive", "00_全局中枢_Hub")
 PROTECTED_PREFIXES = ("冻结存档-",)
 APPEND_ONLY_SUFFIX = os.path.join("_control", "02_DECISION_LEDGER.md")
 DEFAULT_PROTOCOL_VERSION = "2024-11-05"
@@ -113,10 +113,33 @@ class PathGuard:
             )
 
 
+def _open_nocache_text(resolved_path):
+    """Open file with macOS F_NOCACHE (48) to bypass stale VirtioFS guest UBC page cache."""
+    import fcntl as _fcntl
+    F_NOCACHE = getattr(_fcntl, "F_NOCACHE", 48)
+    try:
+        os.listdir(os.path.dirname(resolved_path))
+    except OSError:
+        pass
+    fd = os.open(resolved_path, os.O_RDONLY)
+    try:
+        _fcntl.fcntl(fd, F_NOCACHE, 1)
+    except OSError:
+        pass
+    return os.fdopen(fd, "r", encoding="utf-8", errors="replace")
+
+
 def _read_text_slices(resolved_path, head=None, tail=None):
     if head is not None and tail is not None:
         raise ValueError("Cannot specify both head and tail parameters simultaneously")
-    with open(resolved_path, "r", encoding="utf-8", errors="replace") as f:
+    proj = state_project(resolved_path)
+    if proj is not None and head is None and tail is None:
+        try:
+            import state_client
+            return state_client.read(proj)["content"]
+        except Exception:
+            pass
+    with _open_nocache_text(resolved_path) as f:
         if head is not None:
             head_n = int(head)
             if head_n < 0:
@@ -228,6 +251,8 @@ def _matches_exclude(rel_path, name, exclude_patterns):
 
 
 def _build_tree(dir_path, root_path, exclude_patterns, max_entries=2000):
+    if any(n in ('benchmark','冻结件') or n.startswith('冻结存档-') for n in os.path.realpath(dir_path).split(os.sep)):
+        return []
     entries = []
     try:
         items = sorted(os.listdir(dir_path))
@@ -257,12 +282,25 @@ def _build_tree(dir_path, root_path, exclude_patterns, max_entries=2000):
     return entries
 
 
+def state_project(path):
+    from pathlib import Path
+    candidate = Path(path)
+    if (candidate.name == '01_PROJECT_STATE.md' and candidate.parent.name == '_control'
+            and candidate.parents[2].name == '01_在研课题_Projects'):
+        return candidate.parents[1]
+    return None
+
+
 class MCPFilesystemServer:
     def __init__(self, guard):
         self.guard = guard
 
     def list_tools(self):
-        return [
+        state_tools = []
+        for tool, fields in [('read_project_state', ['path']), ('submit_project_state', ['path', 'base_sha256', 'content'])]:
+            state_tools.append({'name': tool, 'description': 'Read the state including its hash, or queue a conditional update for the host.',
+                                'inputSchema': {'type': 'object', 'properties': {k: {'type':'string'} for k in fields}, 'required': fields}})
+        return state_tools + [
             {
                 "name": "read_file",
                 "description": (
@@ -425,6 +463,18 @@ class MCPFilesystemServer:
 
     def call_tool(self, name, args):
         args = args or {}
+        if name in ('read_project_state', 'submit_project_state'):
+            import state_client
+            resolved = self.guard.validate(args.get('path'))
+            project = state_project(resolved)
+            if project is None:
+                raise ValueError('请选择项目状态原件')
+            if name == 'read_project_state':
+                result = state_client.read(project)
+            else:
+                self.guard.ensure_writable(resolved)
+                result = state_client.submit(project, args.get('base_sha256'), args.get('content'))
+            return json.dumps(result, ensure_ascii=False)
         if name in ("read_file", "read_text_file"):
             resolved = self.guard.validate(args.get("path"))
             text = _read_text_slices(
@@ -449,6 +499,8 @@ class MCPFilesystemServer:
         if name == "write_file":
             resolved = self.guard.validate(args.get("path"))
             self.guard.ensure_writable(resolved)
+            if state_project(resolved):
+                raise ValueError('请用 read_project_state / submit_project_state')
             content = args.get("content")
             if content is None:
                 raise ValueError("'content' is required")
@@ -464,6 +516,8 @@ class MCPFilesystemServer:
         if name == "edit_file":
             resolved = self.guard.validate(args.get("path"))
             self.guard.ensure_writable(resolved)
+            if state_project(resolved) and not args.get('dryRun', False):
+                raise ValueError('请用 read_project_state / submit_project_state')
             edits = args.get("edits")
             if not isinstance(edits, list):
                 raise ValueError("'edits' must be a list")
@@ -515,6 +569,10 @@ class MCPFilesystemServer:
         if name == "move_file":
             src = self.guard.validate(args.get("source"))
             dst = self.guard.validate(args.get("destination"))
+            actual_dst = os.path.join(dst, os.path.basename(src)) if os.path.isdir(dst) else dst
+            if any(state_project(p) or (os.path.isdir(p) and any(os.path.isfile(os.path.join(p, rel))
+                   for rel in ('_control/01_PROJECT_STATE.md', '01_PROJECT_STATE.md'))) for p in (src, dst, actual_dst)):
+                raise ValueError('状态文件及所属目录需保留原路径')
             self.guard.ensure_writable(src)
             self.guard.ensure_no_protected_descendants(src)
             self.guard.ensure_writable(dst)
@@ -537,13 +595,15 @@ class MCPFilesystemServer:
             pat_lower = pattern.lower()
             matches = []
 
+            if any(n in ("benchmark","冻结件") or n.startswith("冻结存档-") for n in resolved.split(os.sep)):
+                raise PermissionError("Protected tree cannot be recursively searched")
             for cur_root, dirs, files in os.walk(resolved, followlinks=False):
                 # Prune excluded subdirectories in-place.
                 kept_dirs = []
                 for dname in sorted(dirs):
                     dfull = os.path.join(cur_root, dname)
                     drel = os.path.relpath(dfull, resolved)
-                    if not _matches_exclude(drel, dname, excludes):
+                    if dname not in ("benchmark","冻结件") and not dname.startswith("冻结存档-") and not _matches_exclude(drel, dname, excludes):
                         kept_dirs.append(dname)
                 dirs[:] = kept_dirs
 
