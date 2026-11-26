@@ -62,9 +62,57 @@ flowchart TB
 
 本架构在设计之初的核心目标就是：**既要让 Claude 作为唯一科研主控统领全局，又要 100% 杜绝封号风控、密钥泄漏、提示词注入与实验数据污染**。具体由以下 6 层物理与代码护栏实现：
 
-### 1. 虚拟机物理隔离与纯净网络（VM Sandbox Isolation）
-- **独立 macOS 客机（`ClaudeShield`）**：Claude Desktop 运行在基于 Apple `Virtualization.framework` 的独立 macOS 虚拟机中，拥有独立的系统指纹、独立的沙盒文件系统与纯净的专属网络出口。
-- **宿主机工具链零侵入**：宿主机上的 `cc-switch`、第三方中转 API、代理切换工具、Colab CLI、SSH 隧道、Gitea Token **全部物理隔离在宿主机侧**，虚拟机内不安装任何第三方 API 劫持或反代插件，保持 Claude Desktop 100% 官方原生状态。
+### 1. 虚拟机物理隔离与双 VM 串行住宅网络架构（Dual-VM Socket-Pair & Fail-Closed Residential Egress）
+
+为了彻底消除宿主机复杂分流环境（国内直连规则、IPv6 双栈、多节点切换、UDP/WebRTC/DNS 泄漏）对 Claude 账号的风控威胁，系统采用 **「macOS 专用客机 + Linux 防火墙网关机」双虚拟机串行物理拓扑**（由 `VMCoordinator.swift` 统一编排）：
+
+```mermaid
+flowchart LR
+    subgraph GuestMac["🛡️ 专用 macOS 客机 (ClaudeShield Guest VM · America/Los_Angeles)"]
+        direction TB
+        ClaudeProc["🧠 Claude Desktop / MCP 子进程 / 专用浏览器<br/>(禁用 QUIC · 禁用非代理 WebRTC UDP)"]
+        GuestTUN["🔒 客机内核级 TUN (local.claudeshield.residential)<br/>mihomo (gVisor stack · MTU 1380 · strict-route)<br/>• 127.0.0.1:53 Fake-IP (198.18.0.0/15) + 远程加密 DoT<br/>• 首条规则: NETWORK,udp,REJECT (阻断全部 UDP)<br/>• 阻断 Apple 遥测: push / ess / xp.apple.com -> REJECT<br/>• 唯一静态住宅节点配置 (无 DIRECT / 无 fallback / 无切换组)"]
+        GuestNIC["🔌 唯一虚拟网卡 en0<br/>(私有 Socket-Pair · 无公网 NAT / 无桥接网卡)"]
+        ClaudeProc --> GuestTUN --> GuestNIC
+    end
+
+    subgraph LinuxGW["🧱 前置 Linux 网关虚拟机 (Gateway VM · 硬件级 Kill-Switch)"]
+        direction TB
+        Nftables["🔥 nftables 严格白名单防火墙 (residential.nft)<br/>• FORWARD 默认策略: DROP (先关转发、自检通过后开启)<br/>• 仅放行: 客机 LAN ➔ 唯一中转入口指定 IPv4 TCP 端口<br/>• 物理丢弃: 其余全部 TCP / 全部 UDP / 直连 DNS / 全部 IPv6"]
+    end
+
+    subgraph EgressChain["🌐 外部加密承载与静态住宅出口"]
+        direction LR
+        RelayNode["🔐 固定加密中转入口<br/>(IPv4 TCP 唯一白名单端点)"]
+        ResidentialIP["🏠 固定美区静态住宅 IP<br/>(与客机洛城时区 PST/PDT 对齐)"]
+        Anthropic["☁️ Anthropic 官方服务"]
+        RelayNode --> ResidentialIP --> Anthropic
+    end
+
+    GuestNIC ==>|"私有以太网 SocketPair<br/>(唯一物理出路)"| Nftables
+    Nftables ==>|"仅白名单加密 TCP 放行"| RelayNode
+```
+
+#### 核心网络防封与零泄漏机制（6 层网络级护栏）：
+1. **双 VM 物理网卡气隙隔离（No Direct NAT on macOS Guest）**：
+   - `VMCoordinator.swift` 启动两台虚拟机：**受保护的 macOS 客机**与**前置 Linux 网关机**。
+   - **macOS 客机没有任何公网 NAT、桥接（Bridged）或宿主机共享网卡**，仅有一张通过内存私有 `socketpair` 连接到 Linux 网关机的 `en0` 网卡。
+   - **先网关、后客机（Fail-Closed Boot）**：宿主机必须先启动 Linux 网关机、完成 `nftables` 规则校验与离线 `namespace` 自检后，才允许启动 macOS 客机。
+2. **客机内嵌唯一静态住宅节点 TUN（零 `DIRECT` / 零 `fallback`）**：
+   - 客机内部通过系统级守护进程 `local.claudeshield.residential` 运行 `mihomo`（`gVisor` 网络栈、`MTU 1380`、`strict-route: true`、`auto-route: true`），统一接管 Claude Desktop、所有 MCP 子进程与浏览器的全机流量。
+   - 客机配置中**仅保留唯一一个静态住宅出口节点**，彻底剔除 `DIRECT` 直连、多节点自动测速切换组与 `fallback` 回退组——即便上游网络波动，也只会断网等待，**绝不回退到直连 IP 或跳变到其他国家/机房节点**。
+3. **合成 DNS（Fake-IP + 远程加密 DoT）防 DNS 污染与泄漏**：
+   - 客机 `127.0.0.1:53` 配合 `dns-hijack: any:53` 接管全机 DNS，本地立即返回 `198.18.0.0/15` 合成 Fake-IP；所有 `nameserver`、`default-nameserver`、`proxy-server-nameserver` 均绑定加密 DoT 经唯一住宅节点远端解析，**零本地运营商 DNS 暴露**。
+4. **全量 UDP / QUIC / WebRTC / IPv6 与 Apple 系统遥测硬阻断**：
+   - **UDP 零放行**：规则首条强制 `NETWORK,udp,REJECT`，配合客机浏览器启动参数禁用 QUIC 与非代理 WebRTC UDP，彻底封死 STUN 打洞探测真实 IP。
+   - **IPv6 全栈关闭**：客机核心、DNS 与网关层全面禁用 IPv6，消除宿主机物理网卡全局 IPv6 旁路风险。
+   - **Apple 遥测阻断**：显式拦截 `push.apple.com`、`ess.apple.com`、`xp.apple.com`（`REJECT`），防止 macOS 系统后台推送服务外联。
+   - **事务化网络自愈（`guest-network-common.sh` & `repair-guest-network.sh`）**：客机网络维护采用严格的文件锁、离线沙盒校验（`sandbox-exec` 禁网预检 `candidate.yaml`）、`198.18.x.x` 合成 DNS 探针核验与失败全量原子回滚。
+5. **前置 Linux 网关 `nftables` 硬件级熔断开关（Hardware Kill-Switch）**：
+   - 即使客机内部代理进程意外崩溃、或某个二进制程序试图绕过客机 TUN 直接发包，数据包一旦从 `en0` 进入前置 Linux 网关机，`nftables` (`FORWARD` 链默认 `DROP`) **仅放行发往唯一加密中转入口指定 IPv4 TCP 端口的密文流量**，其余任何直连 IP、全部 UDP、直连 DNS 与 IPv6 数据包均在网关层被物理丢弃（`DROP`）。
+6. **单向受控剪贴板（`VZVirtioSocketDevice`）与跨时区指纹对齐**：
+   - **受控纯文本剪贴板**：关闭主客机自动剪贴板同步，仅允许宿主机主动拨号传输 `<=256 KiB` 纯文本；客机文本取回宿主机前强制弹窗预览确认，防止恶意多行命令注入宿主机。
+   - **出口环境与时区对齐**：客机保持与美区静态住宅 IP 一致的 `America/Los_Angeles (PST/PDT)` 时区与语言指纹；宿主机调度器与大屏在任务回执层自动执行 **北京时间（`UTC+8`）↔ 虚拟机洛城时间（`PST/PDT`）** 双时区对齐。
 
 ### 2. 严禁 OAuth 逆向反代（Official Client Only Policy）
 - **Claude 与 Antigravity (Gemini) 均只使用官方原生客户端**：

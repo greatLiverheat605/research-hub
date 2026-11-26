@@ -40,8 +40,10 @@ flowchart TB
 
 ## 二、 核心特性
 
-1. **Claude 零封号物理隔离与安全架构（详见 [ARCHITECTURE_AND_SECURITY.md](ARCHITECTURE_AND_SECURITY.md)）**
-   - **主控客机隔离**：Claude Desktop 运行在独立 macOS 虚拟机中，严禁任何 OAuth 逆向反代；所有外部 API 密钥（OpenAI / DeepSeek / GLM / Gitea / Colab）100% 物理隔离在宿主机 `~/.config/research_hub/.env` 与宿主机钥匙串中，虚拟机零密钥暴露。
+1. **Claude 零封号物理隔离与双 VM 住宅网络架构（详见 [ARCHITECTURE_AND_SECURITY.md](ARCHITECTURE_AND_SECURITY.md)）**
+   - **双虚拟机串行网卡气隙隔离（`macOS Guest VM` + `Linux Gateway VM`）**：macOS 客机不配置任何公网 NAT 或桥接网卡，仅通过私有 `socketpair` (`en0`) 连接前置 Linux 网关机；网关机 `nftables` 默认 `DROP` 一切转发，仅白名单放行唯一加密中转入口的 IPv4 TCP 端口，构成硬件级断网熔断开关（Fail-Closed Kill Switch）。
+   - **唯一静态住宅出口 + 零泄漏封锁**：客机内置 `mihomo` (`gVisor` TUN + `strict-route`)，仅配置单一固定美区住宅节点（无 `DIRECT`、无 `fallback`、无自动切换组）；开启 `127.0.0.1:53` Fake-IP + 远端加密 DoT，首条规则 `NETWORK,udp,REJECT` 阻断全部 UDP/QUIC/WebRTC，全栈关闭 IPv6 并拦截 Apple 系统遥测域名（`push/ess/xp.apple.com`），客机保持 `America/Los_Angeles` 时区与住宅 IP 完美对齐。
+   - **官方原生客户端与零密钥暴露**：严禁任何 OAuth 逆向反代；所有外部 API 密钥（OpenAI / DeepSeek / GLM / Gitea / Colab）100% 物理隔离在宿主机 `~/.config/research_hub/.env` 与宿主机钥匙串中，虚拟机零密钥暴露。
    - **VirtioFS 双层缓存一致性（`state_store.py` + `state_client.py` + `fix_vm_cache.sh`）**：宿主机采用「原地 Inode 覆写 + `.state_cache/<sha256>.md` 零缓存内容寻址副件」杜绝客机 `namei` 目录缓存报 `FileNotFoundError`；客机读取层调用 XNU 内核级 `libc.msync(MS_INVALIDATE)` (`0x0002`) + `F_NOCACHE` (`48`) 强行驱逐旧 UBC 内存页缓存，彻底根治跨端哈希不一致。
 2. **双轨并发算力总线与 3 路 Colab 多开租约池（`dispatch_worker.py` + `colab_jobs.py`）**
    - **Colab 专线池（默认 `3` 并发）**：支持 `P01`/`P02`/`P03` 跨课题同时开 3 台 Colab（CPU / T4 / L4 / A100 / H100 / G4）并行跑实验；同一课题内部自动串行排队以保护 Checkpoint 与输出文件；采用 `leases/rh-<uuid>.json` 多租约池精准释放，遇 Google `HTTP 412` 并发上限自动退避排队。
