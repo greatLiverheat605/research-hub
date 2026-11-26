@@ -1,4 +1,4 @@
-"""Read a project state (with XNU msync(MS_INVALIDATE) + F_NOCACHE + .state_cache self-healing) or enqueue a host commit."""
+"""Read a project state (with Guest VFS write-through + .state_cache self-healing) or enqueue a host commit."""
 import argparse
 import ctypes
 import ctypes.util
@@ -31,7 +31,6 @@ except Exception:
 
 
 def invalidate_ubc_fd(fd: int) -> None:
-    """调用 macOS XNU 内核 msync(MS_INVALIDATE) 强制清空当前文件描述符对应 vnode 在客机内存中的 UBC 页缓存。"""
     try:
         fcntl.fcntl(fd, F_NOCACHE, 1)
     except OSError:
@@ -65,7 +64,9 @@ def _read_nocache(path: Path) -> bytes:
 
 
 def _refresh_guest_ubc(path: Path, data: bytes) -> None:
-    """通过客机自身 VFS 写入通道刷新客机内核 UBC 页缓存，同时保持原 Inode 不变。"""
+    """通过客机自身 VFS 写入通道刷新客机内核 UBC 页缓存，同时保持原 Inode 不变。
+    在 VirtioFS 下，只要由客机发起一次 VFS write+ftruncate+fsync，客机内核 UBC 中的旧页与尾部 NUL 填充会立即被真实内容覆盖！
+    """
     try:
         fd = os.open(path, os.O_RDWR | os.O_NOFOLLOW)
         try:
@@ -111,23 +112,26 @@ def read(project: Path, expected_sha256: str = None):
             snap_file = cand
     if snap_file is None:
         latest_snap = _latest_snapshot_in_cache(cache_root)
-        if latest_snap is not None and latest_snap.stem != cur_sha:
-            # 只有当 .state_cache 中最新快照比当前读到的内容更新时才触发自愈
+        # 若客机读到的 data 含有尾部 NUL (\x00) 字节（典型的 VirtioFS 文件增长 UBC 旧页未刷新特征），或与最新快照不一致，立即从零缓存快照自愈
+        if latest_snap is not None and (b'\x00' in data or latest_snap.stem != cur_sha):
             try:
-                if latest_snap.stat().st_mtime_ns >= state_path.stat().st_mtime_ns - 2_000_000_000:
+                if b'\x00' in data or latest_snap.stat().st_mtime_ns >= state_path.stat().st_mtime_ns - 5_000_000_000:
                     snap_file = latest_snap
             except OSError:
                 snap_file = latest_snap
 
     if snap_file is not None and snap_file.is_file():
-        snap_data = _read_nocache(snap_file)
-        snap_sha = hashlib.sha256(snap_data).hexdigest()
-        if snap_sha == snap_file.stem:
-            _refresh_guest_ubc(state_path, snap_data)
-            data = snap_data
-            cur_sha = snap_sha
+        try:
+            snap_data = _read_nocache(snap_file)
+            snap_sha = hashlib.sha256(snap_data).hexdigest()
+            if snap_sha == snap_file.stem:
+                _refresh_guest_ubc(state_path, snap_data)
+                data = snap_data
+                cur_sha = snap_sha
+        except OSError:
+            pass
 
-    return {'sha256': cur_sha, 'bytes': len(data), 'content': data.decode('utf-8')}
+    return {'sha256': cur_sha, 'bytes': len(data), 'content': data.decode('utf-8', errors='replace')}
 
 
 def submit(project: Path, expected: str, content: str):
@@ -139,17 +143,26 @@ def submit(project: Path, expected: str, content: str):
     queue = project / '_dispatch/pending'
     if queue.resolve() != queue.absolute() or not queue.is_dir():
         raise ValueError('项目投递目录不可用')
+
+    # 先在客机侧核对 expected，若通过则同时在客机 VFS 原地刷入新内容，确保客机自身 UBC 页缓存当场 100% 更新！
+    cur = read(project, expected_sha256=expected)
+    raw = content.encode('utf-8')
+    new_sha = hashlib.sha256(raw).hexdigest()
+    if cur['sha256'] == expected:
+        _refresh_guest_ubc(project / STATE, raw)
+
     ident = 'state_' + uuid.uuid4().hex
     job = dict(job_id=ident, action='state_commit', base_sha256=expected, content=content)
     with tempfile.NamedTemporaryFile(dir=queue, suffix='.tmp', mode='w', encoding='utf-8', delete=False) as tmp:
         try:
             json.dump(job, tmp, ensure_ascii=False)
             tmp.flush()
+            os.fchmod(tmp.fileno(), 0o644)
             os.fsync(tmp.fileno())
             os.rename(tmp.name, queue / (ident + '.json'))
         finally:
             Path(tmp.name).unlink(missing_ok=True)
-    return {'queued': ident, 'receipt': '_dispatch/done/' + ident + '_result.md', 'sha256': hashlib.sha256(content.encode()).hexdigest()}
+    return {'queued': ident, 'receipt': '_dispatch/done/' + ident + '_result.md', 'sha256': new_sha}
 
 
 def main():

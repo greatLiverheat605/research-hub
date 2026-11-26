@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 
 
-def replace(path, text, mode=None):
+def replace(path, text, mode=0o644):
     if path.is_file() and not path.is_symlink() and path.read_text() == text:
         if mode is not None and path.stat().st_mode & 0o777 != mode:
             path.chmod(mode)
@@ -24,10 +24,30 @@ def replace(path, text, mode=None):
 
 def publish_shared(path, text, state_root):
     # A VirtioFS lookup retains the original inode in the guest VFS namei cache.
-    # Always update existing files in-place so the inode never becomes unlinked (avoiding Guest ENOENT).
+    # 1) Always update existing files in-place so the inode never becomes unlinked (avoiding Guest ENOENT).
+    # 2) Also write a content-addressed 0644 sidecar in .virtiofs_cache/<name>.<sha256>.cache so the Guest
+    #    MCP can bypass stale Guest UBC pages (and NUL padding on file growth) and refresh the Guest VFS.
     state_root.mkdir(parents=True, exist_ok=True, mode=0o700)
     identity_file = state_root / ('inode-' + path.name + '.json')
     payload = text.encode('utf-8')
+    sha = hashlib.sha256(payload).hexdigest()
+    cache_dir = path.parent / '.virtiofs_cache'
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        snap = cache_dir / f'{path.name}.{sha}.cache'
+        if not snap.exists():
+            with tempfile.NamedTemporaryFile(dir=cache_dir, prefix='.vc_', delete=False) as tf:
+                tf.write(payload)
+                tf.flush()
+                os.fchmod(tf.fileno(), 0o644)
+                os.fsync(tf.fileno())
+            os.replace(tf.name, snap)
+        old_snaps = sorted(cache_dir.glob(f'{path.name}.*.cache'), key=lambda p: p.stat().st_mtime_ns, reverse=True)
+        for old_s in old_snaps[6:]:
+            old_s.unlink(missing_ok=True)
+    except OSError:
+        pass
+
     if path.exists() and not path.is_symlink():
         try:
             fd = os.open(path, os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK)

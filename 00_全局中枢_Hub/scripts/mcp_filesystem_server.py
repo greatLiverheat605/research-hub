@@ -113,11 +113,51 @@ class PathGuard:
             )
 
 
+def _heal_from_virtiofs_sidecar(resolved_path):
+    """If the host wrote a 0644 content-addressed sidecar in .virtiofs_cache/<name>.<sha256>.cache,
+    verify whether the guest's local VFS view of resolved_path is stale (e.g. contains NUL padding or old hash)
+    and self-heal the guest's UBC cache by writing through the guest VFS fd.
+    """
+    import hashlib as _hashlib
+    parent = os.path.dirname(resolved_path)
+    base = os.path.basename(resolved_path)
+    cache_dir = os.path.join(parent, ".virtiofs_cache")
+    if not os.path.isdir(cache_dir):
+        return
+    try:
+        prefix = base + "."
+        cands = [
+            os.path.join(cache_dir, n)
+            for n in os.listdir(cache_dir)
+            if n.startswith(prefix) and n.endswith(".cache")
+        ]
+        if not cands:
+            return
+        latest = max(cands, key=lambda p: os.stat(p).st_mtime_ns)
+        expected_sha = os.path.basename(latest)[len(prefix) : -len(".cache")]
+        with open(resolved_path, "rb") as rf:
+            cur_bytes = rf.read()
+        if b"\x00" not in cur_bytes and _hashlib.sha256(cur_bytes).hexdigest() == expected_sha:
+            return
+        with open(latest, "rb") as sf:
+            fresh_bytes = sf.read()
+        if _hashlib.sha256(fresh_bytes).hexdigest() == expected_sha:
+            with open(resolved_path, "r+b") as wf:
+                wf.seek(0)
+                wf.write(fresh_bytes)
+                wf.truncate()
+                wf.flush()
+                os.fsync(wf.fileno())
+    except OSError:
+        pass
+
+
 def _open_nocache_text(resolved_path):
-    """Open file with macOS XNU msync(MS_INVALIDATE) + F_NOCACHE (48) to purge stale VirtioFS guest UBC page cache."""
+    """Open file with macOS XNU msync(MS_INVALIDATE) + F_NOCACHE (48) + .virtiofs_cache sidecar self-healing."""
     import ctypes as _ctypes
     import ctypes.util as _cutil
     import fcntl as _fcntl
+    _heal_from_virtiofs_sidecar(resolved_path)
     F_NOCACHE = getattr(_fcntl, "F_NOCACHE", 48)
     fd = os.open(resolved_path, os.O_RDONLY)
     try:
@@ -478,7 +518,12 @@ class MCPFilesystemServer:
     def call_tool(self, name, args):
         args = args or {}
         if name in ('read_project_state', 'submit_project_state'):
+            import importlib
             import state_client
+            try:
+                state_client = importlib.reload(state_client)
+            except Exception:
+                pass
             resolved = self.guard.validate(args.get('path'))
             project = state_project(resolved)
             if project is None:
