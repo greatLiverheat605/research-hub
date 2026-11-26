@@ -39,6 +39,7 @@ import run_stream
 from service_reload import reload_changed
 import colab_jobs
 import issue_inbox
+import gitea_mail
 from protected_paths import protected, walk
 import consult  # noqa: E402
 import exp_store  # noqa: E402
@@ -626,17 +627,28 @@ def _handle_gitea_create_issue(project_dir: Path, job: Dict[str, Any], dotenv: D
 
 
 def _handle_gitea_comment_issue(project_dir: Path, job: Dict[str, Any], dotenv: Dict[str, str]) -> Tuple[bool, str]:
-    repo_url, _, token, _, _ = _load_gitea_cfg(project_dir, dotenv)
-    if not repo_url or not token:
-        return False, "缺少 Gitea repo_url 或 GITEA_TOKEN"
-    num = int(job.get("issue_number") or 0)
-    if num <= 0:
-        return False, "回复工单缺少正整数 issue_number"
-    body = _resolve_body_text(project_dir, job)
-    code, resp = _gitea_api(repo_url, token, f"issues/{num}/comments", method="POST", payload={"body": body})
-    if code in (200, 201) and isinstance(resp, dict):
-        return True, f"✅ 已在工单 **#{num}** 追加评论\n- 链接: {resp.get('html_url', '')}"
-    return False, f"追加评论失败 HTTP {code}: {resp}"
+    repo, user, token, _, _ = _load_gitea_cfg(project_dir, dotenv)
+    if not token or not user: raise ValueError('Gitea 身份配置不完整')
+    root = Path.home()/'.local/state/researchhub/issues'/project_dir.name
+    action = job.get('action')
+    if action == 'gitea_mark_event':
+        return gitea_mail.mark(root, job)
+    if action == 'gitea_pending':
+        try:
+            sync_details(project_dir, dotenv)
+        except Exception as exc:
+            gitea_mail.sync_error(root, exc)
+            path = gitea_mail.publish(project_dir, 'pending', gitea_mail.list_pending(root,project_dir))
+            return False, '远端刷新失败；上次成功同步的清单：'+path
+        return True, gitea_mail.publish(project_dir,'pending',gitea_mail.list_pending(root,project_dir))
+    num = int(job['issue_number'])
+    if num <= 0: raise ValueError('issue_number 必须为正整数')
+    def fetch():
+        return gitea_mail.context(lambda ep: _gitea_api(repo,token,ep), num, issue_inbox.pages)
+    if action == 'gitea_issue_context':
+        return True, gitea_mail.snapshot(project_dir,fetch(),root)
+    return gitea_mail.guarded_reply(project_dir,root,job,user,_resolve_body_text(project_dir,job),fetch,
+        lambda body: _gitea_api(repo,token,f'issues/{num}/comments',method='POST',payload={'body':body}))
 
 
 def _gitea_delivery(project, job, dotenv):
@@ -758,207 +770,357 @@ def _handle_scout_request(project_dir: Path, job: Dict[str, Any]) -> Tuple[bool,
     )
 
 
-def process_project(project_dir: Path, dotenv: Dict[str, str]) -> int:
+def _execute_single_job(project_dir: Path, run_path: Path, jf_name: str, dotenv: Dict[str, str]) -> bool:
+    """执行已原子移入 _dispatch/running/ 的单个工单，写回执、归档并通知。"""
+    disp = project_dir / "_dispatch"
+    running_dir = disp / "running"
+    done_dir = disp / "done"
+    archive_dir = disp / "archive"
+
+    started = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ok = False
+    detail = ""
+    action = "unknown"
+    job: Dict[str, Any] = {}
+    log_path: Optional[Path] = None
+    job_id = Path(jf_name).stem
+    try:
+        job = json.loads(run_path.read_text(encoding="utf-8"))
+        requested = str(job.get("job_id") or Path(jf_name).stem)
+        if not re.fullmatch(r"[\w][\w.-]{0,119}", requested):
+            raise ValueError("job_id 格式错误")
+        job_id = requested
+        action = str(job.get("action") or "").strip()
+        if action in ("local_py", "win_codex_py", "remote_py", "colab_py"):
+            log_file = running_dir / (job_id + ".log")
+            log_file.touch(exist_ok=False)
+            log_path = log_file
+            job["_log"] = log_path
+        if action == "colab_check":
+            active = colab_jobs.preflight()
+            ok, detail = True, f"宿主机后台认证成功；Google 返回 {len(active)} 个活动运行时。本次检查只读。"
+        elif action == "colab_py":
+            job["job_id"] = job_id
+            ok, detail = colab_jobs.run(project_dir, job, _safe_rel_path)
+        elif action in ("gitea_set_issue_state", "gitea_issue_attachment", "gitea_release_upload"):
+            ok, detail = _gitea_delivery(project_dir, job, dotenv)
+        elif action == "local_py":
+            ok, detail = _handle_local_py(project_dir, job)
+        elif action == "win_codex_py":
+            ok, detail = _handle_win_codex_py(project_dir, job)
+        elif action == "remote_py":
+            ok, detail = _handle_remote_py(project_dir, job)
+        elif action == "gitea_pull":
+            ok, detail = _handle_gitea_pull(project_dir, job, dotenv)
+        elif action == "gitea_push_pr":
+            ok, detail = _handle_gitea_push_pr(project_dir, job, dotenv)
+        elif action == "gitea_pr_status":
+            ok, detail = _handle_gitea_pr_status(project_dir, job, dotenv)
+        elif action == "gitea_create_issue":
+            ok, detail = _handle_gitea_create_issue(project_dir, job, dotenv)
+        elif action in ("gitea_comment_issue", "gitea_issue_context", "gitea_pending", "gitea_mark_event"):
+            ok, detail = _handle_gitea_comment_issue(project_dir, job, dotenv)
+        elif action == "tailscale_cp":
+            ok, detail = _handle_tailscale_cp(project_dir, job)
+        elif action == "lit_fetch":
+            ok, detail = _handle_lit_fetch(project_dir, job)
+        elif action == "state_commit":
+            import state_store
+            content = job.get("content")
+            if not isinstance(content, str):
+                raise ValueError("状态正文必须为文本")
+            result = state_store.publish(project_dir, job.get("base_sha256"), content.encode())
+            ok, detail = True, "宿主机发布并读回成功。接收方须从原路径核对。\n" + json.dumps(result)
+        elif action == "scout_request":
+            ok, detail = _handle_scout_request(project_dir, job)
+        else:
+            ok, detail = False, f"拒绝执行：未知或不在白名单内的 action=`{action}`"
+    except Exception as exc:
+        ok, detail = False, f"执行异常：{type(exc).__name__}: {exc}"
+        if action == "colab_py" and log_path and log_path.is_file():
+            with log_path.open("rb") as src:
+                src.seek(max(0, log_path.stat().st_size - 3000))
+                detail += "\n" + src.read().decode("utf8", "replace")
+
+    finished = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        from zoneinfo import ZoneInfo
+        now_u = datetime.datetime.now(datetime.timezone.utc)
+        la_fin = now_u.astimezone(ZoneInfo("America/Los_Angeles")).strftime("%Y-%m-%d %H:%M:%S %Z")
+        dual_time_note = f"{started} → {finished} (宿主机北京时间 UTC+8 ｜ 对应虚拟机洛城时间: {la_fin}；项目文档归档日期一律以北京时间日期为准)"
+    except Exception:
+        dual_time_note = f"{started} → {finished} (宿主机北京时间 UTC+8)"
+    status_str = "SUCCESS" if ok else "FAILED"
+    result_md = (
+        f"# 任务回执：{job_id}\n\n"
+        f"- **课题**：`{project_dir.name}`\n"
+        f"- **白名单动作**：`{action}`\n"
+        f"- **状态**：**{status_str}**\n"
+        f"- **开始 / 结束**：{dual_time_note}\n\n"
+        f"## 执行详情\n{detail}\n"
+    )
+    result_file = done_dir / f"{job_id}_result.md"
+    issue_inbox.replace(result_file, result_md)
+    if log_path is not None and log_path.exists():
+        os.replace(log_path, done_dir / log_path.name)
+    if isinstance(job, dict):
+        job.pop("_log", None)
+    try:
+        exp_store.record_dispatch_run(
+            project_dir=project_dir,
+            job_id=job_id,
+            action=action,
+            status=status_str,
+            started_at=started,
+            finished_at=finished,
+            job_payload=job if isinstance(job, dict) else {},
+            detail=detail,
+        )
+    except Exception as exc:
+        print(f"[Dispatch] 写入 SQLite 实验库失败（已忽略）: {exc}", flush=True)
+    shutil.move(str(run_path), str(archive_dir / jf_name))
+    print(f"[Dispatch] {project_dir.name} | {job_id} ({action}) -> {status_str} | 回执: {result_file.name}", flush=True)
+    _notify_macos(
+        f"ResearchHub 工单执行{'成功' if ok else '失败'}",
+        f"{project_dir.name} · {job_id} ({action})",
+        "已写入执行回执，打开大屏按工单编号查询。",
+    )
+    return ok
+
+
+def _ensure_dispatch_dirs(project_dir: Path) -> Tuple[Path, Path, Path, Path]:
     disp = project_dir / "_dispatch"
     pending_dir = disp / "pending"
     running_dir = disp / "running"
     done_dir = disp / "done"
     archive_dir = disp / "archive"
     for d in (pending_dir, running_dir, done_dir, archive_dir):
-        if d.resolve() != d.absolute(): raise PermissionError("队列目录不能为软链接")
+        if d.resolve() != d.absolute():
+            raise PermissionError("队列目录不能为软链接")
         d.mkdir(parents=True, exist_ok=True)
+    return pending_dir, running_dir, done_dir, archive_dir
 
+
+def _peek_job_action(jf: Path) -> str:
+    try:
+        payload = json.loads(jf.read_text(encoding="utf-8"))
+        return str(payload.get("action") or "").strip()
+    except Exception:
+        return "unknown"
+
+
+def _load_concurrency_limits() -> Tuple[int, int]:
+    """从 ~/.config/research_hub/colab_policy.json 读取 Colab 最大并发数与快线并发数。"""
+    try:
+        policy = json.loads(colab_jobs.CONFIG.read_text(encoding="utf-8"))
+        max_colab = max(1, min(int(policy.get("max_concurrent_colab", 3)), 8))
+        max_fast = max(1, min(int(policy.get("max_concurrent_fast", 4)), 12))
+        return max_colab, max_fast
+    except Exception:
+        return 3, 4
+
+
+def process_project(project_dir: Path, dotenv: Dict[str, str]) -> int:
+    pending_dir, running_dir, _, _ = _ensure_dispatch_dirs(project_dir)
     jobs = sorted(pending_dir.glob("*.json"))
     count = 0
     for jf in jobs:
         run_path = running_dir / jf.name
-        if jf.is_symlink() or jf.name.startswith("."): continue
-        try: jf.rename(run_path)
-        except FileNotFoundError: continue
-        started = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        ok = False
-        detail = ""
-        action = "unknown"
-        job = {}
-        log_path = None
-        job_id = jf.stem
+        if jf.is_symlink() or jf.name.startswith("."):
+            continue
         try:
-            job = json.loads(run_path.read_text(encoding="utf-8"))
-            requested = str(job.get("job_id") or jf.stem)
-            if not re.fullmatch(r"[\w][\w.-]{0,119}", requested): raise ValueError('job_id 格式错误')
-            job_id = requested
-            action = str(job.get("action") or "").strip()
-            if action in ('local_py','win_codex_py','remote_py','colab_py'):
-                log_file = running_dir / (job_id+'.log')
-                log_file.touch(exist_ok=False)
-                log_path = log_file
-                job['_log'] = log_path
-            if action == 'colab_check':
-                active=colab_jobs.preflight()
-                ok,detail=True,f'宿主机后台认证成功；Google 返回 {len(active)} 个活动运行时。本次检查只读。'
-            elif action == 'colab_py':
-                job['job_id']=job_id
-                ok,detail=colab_jobs.run(project_dir,job,_safe_rel_path)
-            elif action in ('gitea_set_issue_state','gitea_issue_attachment','gitea_release_upload'):
-                ok,detail=_gitea_delivery(project_dir,job,dotenv)
-            elif action == "local_py":
-                ok, detail = _handle_local_py(project_dir, job)
-            elif action == "win_codex_py":
-                ok, detail = _handle_win_codex_py(project_dir, job)
-            elif action == "remote_py":
-                ok, detail = _handle_remote_py(project_dir, job)
-            elif action == "gitea_pull":
-                ok, detail = _handle_gitea_pull(project_dir, job, dotenv)
-            elif action == "gitea_push_pr":
-                ok, detail = _handle_gitea_push_pr(project_dir, job, dotenv)
-            elif action == "gitea_pr_status":
-                ok, detail = _handle_gitea_pr_status(project_dir, job, dotenv)
-            elif action == "gitea_create_issue":
-                ok, detail = _handle_gitea_create_issue(project_dir, job, dotenv)
-            elif action == "gitea_comment_issue":
-                ok, detail = _handle_gitea_comment_issue(project_dir, job, dotenv)
-            elif action == "tailscale_cp":
-                ok, detail = _handle_tailscale_cp(project_dir, job)
-            elif action == "lit_fetch":
-                ok, detail = _handle_lit_fetch(project_dir, job)
-            elif action == "scout_request":
-                ok, detail = _handle_scout_request(project_dir, job)
-            else:
-                ok, detail = False, f"拒绝执行：未知或不在白名单内的 action=`{action}`"
-        except Exception as exc:
-            ok, detail = False, f"执行异常：{type(exc).__name__}: {exc}"
-            if action == 'colab_py' and log_path and log_path.is_file():
-                with log_path.open('rb') as src:
-                    src.seek(max(0,log_path.stat().st_size-3000))
-                    detail += '\n'+src.read().decode('utf8','replace')
-
-        finished = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        try:
-            from zoneinfo import ZoneInfo
-            now_u = datetime.datetime.now(datetime.timezone.utc)
-            la_fin = now_u.astimezone(ZoneInfo("America/Los_Angeles")).strftime("%Y-%m-%d %H:%M:%S %Z")
-            dual_time_note = f"{started} → {finished} (宿主机北京时间 UTC+8 ｜ 对应虚拟机洛城时间: {la_fin}；项目文档归档日期一律以北京时间日期为准)"
-        except Exception:
-            dual_time_note = f"{started} → {finished} (宿主机北京时间 UTC+8)"
-        status_str = "SUCCESS" if ok else "FAILED"
-        result_md = (
-            f"# 任务回执：{job_id}\n\n"
-            f"- **课题**：`{project_dir.name}`\n"
-            f"- **白名单动作**：`{action}`\n"
-            f"- **状态**：**{status_str}**\n"
-            f"- **开始 / 结束**：{dual_time_note}\n\n"
-            f"## 执行详情\n{detail}\n"
-        )
-        result_file = done_dir / f"{job_id}_result.md"
-        issue_inbox.replace(result_file,result_md)
-        if log_path is not None:
-            os.replace(log_path,done_dir/log_path.name)
-        if isinstance(job,dict): job.pop('_log',None)
-        try:
-            exp_store.record_dispatch_run(
-                project_dir=project_dir,
-                job_id=job_id,
-                action=action,
-                status=status_str,
-                started_at=started,
-                finished_at=finished,
-                job_payload=job if "job" in locals() and isinstance(job, dict) else {},
-                detail=detail,
-            )
-        except Exception as exc:
-            print(f"[Dispatch] 写入 SQLite 实验库失败（已忽略）: {exc}", flush=True)
-        shutil.move(str(run_path), str(archive_dir / jf.name))
-        print(f"[Dispatch] {project_dir.name} | {job_id} ({action}) -> {status_str} | 回执: {result_file.name}", flush=True)
-        _notify_macos(
-            f"ResearchHub 工单执行{'成功' if ok else '失败'}",
-            f"{project_dir.name} · {job_id} ({action})",
-            "已写入执行回执，打开大屏按工单编号查询。",
-        )
+            jf.rename(run_path)
+        except FileNotFoundError:
+            continue
+        _execute_single_job(project_dir, run_path, jf.name, dotenv)
         count += 1
     return count
 
 
 def main() -> int:
+    from concurrent.futures import Future, ThreadPoolExecutor
+
     parser = argparse.ArgumentParser(description="宿主机白名单任务总线执行器（_dispatch/）")
     parser.add_argument("--project", help="仅监听指定课题目录（默认扫描 01_在研课题_Projects 下全部课题）")
-    parser.add_argument("--once",action="store_true",help="单次处理队列（默认）")
+    parser.add_argument("--once", action="store_true", help="单次处理队列（默认）")
     parser.add_argument("--watch", action="store_true", help="常驻轮询监听 _dispatch/pending/（每 2 秒）")
     parser.add_argument("--interval", type=float, default=2.0, help="watch 轮询间隔秒数（默认 2.0）")
     args = parser.parse_args()
 
-    lock_dir = Path.home()/'.local/state/researchhub'
-    lock_dir.mkdir(parents=True,exist_ok=True)
-    lock = (lock_dir/'dispatch.lock').open('a')
-    try: fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    lock_dir = Path.home() / ".local/state/researchhub"
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    lock = (lock_dir / "dispatch.lock").open("a")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
-        print('已有执行器持锁'); return 1
+        print("已有执行器持锁")
+        return 1
     config = consult.load_toml(HUB_DIR / "models.toml")
     env_path = Path(str(config.get("general", {}).get("env_file", "~/.config/research_hub/.env"))).expanduser()
 
     def _targets() -> List[Path]:
         if args.project:
             return [consult.resolve_project_dir(args.project, config)]
-        return [p for p in sorted(PROJECTS_DIR.iterdir()) if p.is_dir() and not p.is_symlink() and re.match(r"P\d+_",p.name)]
+        return [p for p in sorted(PROJECTS_DIR.iterdir()) if p.is_dir() and not p.is_symlink() and re.match(r"P\d+_", p.name)]
+
+    max_colab, max_fast = _load_concurrency_limits()
+    colab_pool = ThreadPoolExecutor(max_workers=max_colab, thread_name_prefix="colab-lane")
+    fast_pool = ThreadPoolExecutor(max_workers=max_fast, thread_name_prefix="fast-lane")
+    active_futures: Dict[Future, Tuple[str, str, bool]] = {}
+    active_colab_projects: set[str] = set()
+    active_fast_projects_gitea: set[str] = set()
+
+    def _reap_finished() -> int:
+        done_list = [f for f in list(active_futures.keys()) if f.done()]
+        for f in done_list:
+            proj_name, jf_name, is_colab = active_futures.pop(f)
+            if is_colab:
+                active_colab_projects.discard(proj_name)
+            else:
+                active_fast_projects_gitea.discard(proj_name)
+            try:
+                f.result()
+            except Exception as exc:
+                print(f"[Dispatch] 工作线程异常 ({proj_name}/{jf_name}): {exc}", flush=True)
+        return len(done_list)
+
+    def _dispatch_ready_jobs(dotenv: Dict[str, str]) -> int:
+        """双轨并发调度：
+        1) Colab 专线 (colab_py)：跨课题最多并行 max_colab 台（默认 3 台）；同一课题内部严格串行（避免同课题争抢 Checkpoint/Drive/输出文件）。
+        2) 快线通道 (local_py / gitea_* / lit_fetch / win_codex_py 等)：完全不受 Colab 长任务阻塞，随时秒级响应；同一课题内的 Gitea 写操作互斥。
+        """
+        dispatched = 0
+        cur_colab_count = sum(1 for _, _, is_c in active_futures.values() if is_c)
+        cur_fast_count = sum(1 for _, _, is_c in active_futures.values() if not is_c)
+
+        for project in _targets():
+            try:
+                pending_dir, running_dir, _, _ = _ensure_dispatch_dirs(project)
+            except (OSError, PermissionError) as exc:
+                print(f"[Dispatch] {project.name}: {exc}", flush=True)
+                continue
+
+            for jf in sorted(pending_dir.glob("*.json")):
+                if jf.is_symlink() or jf.name.startswith("."):
+                    continue
+                action = _peek_job_action(jf)
+                is_colab = action == "colab_py"
+                if is_colab:
+                    if project.name in active_colab_projects or cur_colab_count >= max_colab:
+                        # 同一课题已有 Colab 正在运行，或全局已达 3 台 Colab 上限：保留在 pending/ 排队
+                        continue
+                else:
+                    if cur_fast_count >= max_fast:
+                        continue
+                    if action.startswith("gitea_") and project.name in active_fast_projects_gitea:
+                        continue
+
+                run_path = running_dir / jf.name
+                try:
+                    jf.rename(run_path)
+                except FileNotFoundError:
+                    continue
+
+                if is_colab:
+                    active_colab_projects.add(project.name)
+                    cur_colab_count += 1
+                    fut = colab_pool.submit(_execute_single_job, project, run_path, jf.name, dotenv)
+                else:
+                    if action.startswith("gitea_"):
+                        active_fast_projects_gitea.add(project.name)
+                    cur_fast_count += 1
+                    fut = fast_pool.submit(_execute_single_job, project, run_path, jf.name, dotenv)
+
+                active_futures[fut] = (project.name, jf.name, is_colab)
+                dispatched += 1
+        return dispatched
 
     if not args.watch:
         dotenv = consult.load_dotenv(env_path)
-        total = sum(process_project(p, dotenv) for p in _targets())
+        total = 0
+        while True:
+            total += _dispatch_ready_jobs(dotenv)
+            _reap_finished()
+            has_pending = any(
+                any(not jf.is_symlink() and not jf.name.startswith(".") for jf in (p / "_dispatch/pending").glob("*.json"))
+                for p in _targets()
+                if (p / "_dispatch/pending").is_dir()
+            )
+            if not active_futures and not has_pending:
+                break
+            time.sleep(0.2)
+        colab_pool.shutdown(wait=True)
+        fast_pool.shutdown(wait=True)
         print(f"[Dispatch] 单次扫描完成，共处理 {total} 个任务。")
         return 0
 
     # A killed worker cannot prove whether a remote run finished. Preserve its receipts
     # and never automatically replay a potentially side-effecting job.
     for project in _targets():
-        running = project/'_dispatch/running'
-        done = project/'_dispatch/done'
-        archive = project/'_dispatch/archive'
-        if any(path.is_symlink() or path.resolve()!=path for path in (running,done,archive)): continue
-        for stale in running.glob('*.json'):
-            if stale.is_symlink(): continue
+        running = project / "_dispatch/running"
+        done = project / "_dispatch/done"
+        archive = project / "_dispatch/archive"
+        if any(path.is_symlink() or path.resolve() != path for path in (running, done, archive)):
+            continue
+        for stale in running.glob("*.json"):
+            if stale.is_symlink():
+                continue
             try:
                 payload = json.loads(stale.read_text())
-                ident = str(payload.get('job_id') or stale.stem)
-            except (ValueError,AttributeError): ident = stale.stem
-            if not re.fullmatch(r'[\w][\w.-]{0,119}',ident): ident = stale.stem
-            done.mkdir(exist_ok=True); archive.mkdir(exist_ok=True)
-            receipt = done/(ident+'_result.md')
+                ident = str(payload.get("job_id") or stale.stem)
+            except (ValueError, AttributeError):
+                ident = stale.stem
+            if not re.fullmatch(r"[\w][\w.-]{0,119}", ident):
+                ident = stale.stem
+            done.mkdir(exist_ok=True)
+            archive.mkdir(exist_ok=True)
+            receipt = done / (ident + "_result.md")
             if not receipt.exists():
-                issue_inbox.replace(receipt, f'# 任务回执：{ident}\n\n- **状态**：**INTERRUPTED**\n\n宿主执行器中断。请核对目标机和已有产物，再决定是否重新投递。\n')
-            log = running/(ident+'.log')
-            if log.is_file() and not log.is_symlink(): os.replace(log,done/log.name)
-            os.replace(stale,archive/stale.name)
+                issue_inbox.replace(
+                    receipt,
+                    f"# 任务回执：{ident}\n\n- **状态**：**INTERRUPTED**\n\n宿主执行器中断。请核对目标机和已有产物，再决定是否重新投递。\n",
+                )
+            log = running / (ident + ".log")
+            if log.is_file() and not log.is_symlink():
+                os.replace(log, done / log.name)
+            os.replace(stale, archive / stale.name)
+
     def reconcile_cloud():
-        while True:
-            # Only the worker main loop owns a live lease. Recovery runs before accepting work.
-            try:
-                colab_jobs.recover()
-            except Exception as exc:
-                print(f'[Colab] 待核对云运行时：{exc}',flush=True)
-            return
+        try:
+            colab_jobs.recover()
+        except Exception as exc:
+            print(f"[Colab] 待核对云运行时：{exc}", flush=True)
+
     next_cloud_check = 0.0
+
     def poll():
         while True:
             for proj in _targets():
-                cfg = proj/'05_Gitea协作同步区/.gitea_repo.json'
+                cfg = proj / "05_Gitea协作同步区/.gitea_repo.json"
                 try:
-                    if cfg.is_file() and json.loads(cfg.read_text()).get('enabled') is True:
-                        sync_details(proj,consult.load_dotenv(env_path))
+                    if cfg.is_file() and json.loads(cfg.read_text()).get("enabled") is True:
+                        sync_details(proj, consult.load_dotenv(env_path))
                 except Exception as exc:
-                    print(f'[Gitea] {proj.name} 同步未完成：{exc}',flush=True)
+                    gitea_mail.sync_error(Path.home() / ".local/state/researchhub/issues" / proj.name, exc)
+                    print(f"[Gitea] {proj.name} 同步未完成：{exc}", flush=True)
             time.sleep(120)
-    threading.Thread(target=poll,name='issue-sync',daemon=True).start()
-    print(f"[Dispatch] 已启动白名单常驻监听（间隔 {args.interval}s，0 AI 消耗）。按 Ctrl+C 退出。", flush=True)
+
+    threading.Thread(target=poll, name="issue-sync", daemon=True).start()
+    print(
+        f"[Dispatch] 已启动双轨并发常驻监听（Colab 并发上限={max_colab} 台［跨课题并行/同课题串行］，快线并发={max_fast}，轮询间隔 {args.interval}s）。按 Ctrl+C 退出。",
+        flush=True,
+    )
     try:
         while True:
+            _reap_finished()
             dotenv = consult.load_dotenv(env_path)
-            from service_reload import reload_changed
-            reload_changed()
+            # 仅在没有任何在途任务时执行热重载，防止 os.execv 掐断正在运行的线程
+            if not active_futures:
+                reload_changed()
             if time.monotonic() >= next_cloud_check:
                 reconcile_cloud()
                 next_cloud_check = time.monotonic() + 120
-            for p in _targets():
-                try: process_project(p, dotenv)
-                except (OSError,ValueError) as exc: print(f"[Dispatch] {p.name}: {exc}",flush=True)
+            _dispatch_ready_jobs(dotenv)
             time.sleep(max(0.5, args.interval))
     except KeyboardInterrupt:
         print("\n[Dispatch] 已停止监听。")

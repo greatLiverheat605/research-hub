@@ -1,12 +1,15 @@
-"""Run Colab jobs with optional deadlines, scoped file transfer and verified release."""
+"""Run Colab jobs with multi-session lease pool, dynamic Drive auto-binding, optional deadlines, scoped file transfer and verified release."""
 import base64
+import contextlib
 import datetime
+import fcntl
 import json
 import os
 import re
 import shutil
 import subprocess
 import tempfile
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -14,43 +17,133 @@ from issue_inbox import replace
 from protected_paths import protected
 import colab_checkpoint
 
-ROOT = Path.home()/'.local/state/researchhub/colab'
-CONFIG = Path.home()/'.config/research_hub/colab_policy.json'
-PYTHON = Path.home()/'.local/share/uv/tools/google-colab-cli/bin/python'
+ROOT = Path.home() / '.local/state/researchhub/colab'
+LEASES_DIR = ROOT / 'leases'
+CONFIG = Path.home() / '.config/research_hub/colab_policy.json'
+PYTHON = Path.home() / '.local/share/uv/tools/google-colab-cli/bin/python'
 BRIDGE = Path(__file__).with_name('colab_bridge.py')
+
+_STATE_LOCK = threading.Lock()
+_ALLOC_LOCK = threading.Lock()
+_ACTIVE_SESSIONS: set[str] = set()
+
+
+@contextlib.contextmanager
+def _file_lock(name: str = 'colab_state.lock'):
+    ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
+    lock_file = ROOT / name
+    with _STATE_LOCK:
+        with lock_file.open('a') as fh:
+            fcntl.flock(fh, fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(fh, fcntl.LOCK_UN)
 
 
 def command(args, timeout, output=None):
-    proc = subprocess.run([str(PYTHON),'-I','-u',str(BRIDGE),*args],stdin=subprocess.DEVNULL,
-                          stdout=output or subprocess.PIPE,stderr=subprocess.PIPE,timeout=timeout)
+    proc = subprocess.run(
+        [str(PYTHON), '-I', '-u', str(BRIDGE), *args],
+        stdin=subprocess.DEVNULL,
+        stdout=output or subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=timeout,
+    )
     if proc.returncode:
         # Conserve privacy: errors can contain backend credentials. Surface actionable categories.
         err = proc.stderr.decode(errors='replace').lower()
         if proc.returncode == 77 or 'auth_required' in err:
             raise ValueError('AUTH_REQUIRED：请检查宿主机网络和登录钥匙串，再运行 colab sessions 授权。')
-        if any(s in err for s in ('connection','timeout','proxy','ssl','network')):
+        if any(s in err for s in ('connection', 'timeout', 'proxy', 'ssl', 'network')):
             raise ValueError('NETWORK_ERROR：宿主机连接 Google 失败，请检查网络或代理。')
-        if 'quota' in err or 'capacity' in err: raise ValueError('CAPACITY：额度不足或云资源暂不可用。')
+        if any(s in err for s in ('quota', 'capacity', 'too many active sessions', 'precondition failed', 'toomanyassignmentserror')):
+            raise ValueError('CAPACITY：额度不足、云端并发会话数已达上限或云资源暂不可用。')
         raise ValueError(f'Colab {args[0]} 失败，退出码 {proc.returncode}。')
     return (proc.stdout or b'').decode(errors='replace').strip()
 
 
 def preflight():
-    return json.loads(command(['inspect'],32))
+    return json.loads(command(['inspect'], 32))
+
+
+def _is_pid_alive(pid: int) -> bool:
+    if not isinstance(pid, int) or pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+        return True
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+
+
+def _iter_lease_files() -> list[Path]:
+    files: list[Path] = []
+    legacy = ROOT / 'lease.json'
+    if legacy.is_file():
+        files.append(legacy)
+    if LEASES_DIR.is_dir():
+        files.extend(sorted(LEASES_DIR.glob('*.json')))
+    return files
+
+
+def _is_lease_active(data: dict) -> bool:
+    sess = str(data.get('session') or '')
+    pid = data.get('pid')
+    if sess and sess in _ACTIVE_SESSIONS:
+        return True
+    if isinstance(pid, int) and pid != os.getpid() and _is_pid_alive(pid):
+        return True
+    return False
+
+
+def _known_peer_endpoints(exclude_session: str = '') -> set[str]:
+    endpoints: set[str] = set()
+    for lf in _iter_lease_files():
+        try:
+            d = json.loads(lf.read_text())
+        except Exception:
+            continue
+        if d.get('session') == exclude_session:
+            continue
+        ep = d.get('endpoint')
+        if ep:
+            endpoints.add(str(ep))
+    return endpoints
+
+
+def _release_lease_file(lease_path: Path) -> None:
+    if not lease_path.exists():
+        return
+    try:
+        data = json.loads(lease_path.read_text())
+    except Exception:
+        lease_path.unlink(missing_ok=True)
+        return
+    session = str(data.get('session') or '')
+    endpoint = data.get('endpoint') or (command(['endpoint', session], 10) if session else '')
+    if not endpoint:
+        # Allocation may have succeeded before local store was updated. Exclude known peer endpoints.
+        known = set(data.get('baseline') or []) | _known_peer_endpoints(exclude_session=session)
+        if set(preflight()) - known:
+            raise ValueError('RELEASE_PENDING：分配中断，有身份未确认的云实例，请在 Colab 管理会话中核对。')
+    else:
+        command(['release', session, endpoint], 35)
+    lease_path.unlink(missing_ok=True)
 
 
 def recover():
-    lease = ROOT/'lease.json'
-    if not lease.exists(): return
-    data = json.loads(lease.read_text())
-    endpoint = data.get('endpoint') or command(['endpoint',data['session']],10)
-    if not endpoint:
-        # Allocation may have succeeded before the local store was updated. Never stop a foreign VM.
-        if set(preflight()) - set(data['baseline']):
-            raise ValueError('RELEASE_PENDING：分配中断，有身份未确认的云实例，请在 Colab 管理会话中核对。')
-    else:
-        command(['release',data['session'],endpoint],35)
-    lease.unlink()
+    """仅回收已结束/崩溃遗留的孤儿租约，绝不误杀当前正在并行运行的活跃 Colab 会话。"""
+    for lf in _iter_lease_files():
+        try:
+            data = json.loads(lf.read_text())
+        except Exception:
+            lf.unlink(missing_ok=True)
+            continue
+        if _is_lease_active(data):
+            continue
+        _release_lease_file(lf)
 
 
 def job_deadline(job):
@@ -111,6 +204,36 @@ def _auto_stage_drive_input(project: Path, root: Path, rel: str) -> Path:
     return local
 
 
+def resolve_drive_project_root(project: Path, policy: dict) -> Path:
+    """动态解析并自动创建课题的桌面版 Google Drive 绑定目录（兼容未来新增 P04/P05 等任意课题）：
+    1) 优先使用 policy['drive_projects'][project.name]；
+    2) 若为新增课题（尚未在 drive_projects 中显式登记），自动使用 policy['drive_root']
+       （或已有 drive_projects 路径的公共父目录 ResearchHub_Colab）拼接 <drive_root>/<project.name>；
+    3) 若父目录 ResearchHub_Colab 已挂载在线而本课题子目录尚未创建，自动建立该子目录。
+    """
+    drive_projects = policy.get('drive_projects') or {}
+    spec = drive_projects.get(project.name)
+    if spec:
+        root = Path(spec)
+    else:
+        drive_root_str = str(policy.get('drive_root') or '').strip()
+        if not drive_root_str:
+            parents = [str(Path(v).parent) for v in drive_projects.values() if v]
+            drive_root_str = parents[0] if parents else ''
+        if not drive_root_str:
+            raise ValueError('DRIVE_UNAVAILABLE：未配置 drive_root 或本课题的桌面版 Drive 目录')
+        root = Path(drive_root_str) / project.name
+
+    if not root.is_absolute():
+        raise ValueError('DRIVE_UNAVAILABLE：Drive 课题目录必须为绝对路径')
+    parent = root.parent
+    if not root.exists() and parent.is_dir() and not parent.is_symlink() and parent.resolve() == parent:
+        root.mkdir(parents=True, exist_ok=True)
+    if not root.is_dir() or root.is_symlink() or root.resolve() != root:
+        raise ValueError('DRIVE_UNAVAILABLE：宿主机课题目录不可用，请检查桌面版 Drive')
+    return root
+
+
 def drive_files(project, job, policy):
     transfers = []
     for field in ('drive_inputs', 'drive_outputs'):
@@ -121,12 +244,7 @@ def drive_files(project, job, policy):
     inputs, outputs = transfers
     if not inputs and not outputs:
         return [], []
-    spec = policy.get('drive_projects', {}).get(project.name)
-    if not spec:
-        raise ValueError('DRIVE_UNAVAILABLE：未绑定本课题的桌面版 Drive 目录')
-    root = Path(spec)
-    if not root.is_absolute() or root.resolve() != root or not root.is_dir():
-        raise ValueError('DRIVE_UNAVAILABLE：宿主机课题目录不可用，请检查桌面版 Drive')
+    root = resolve_drive_project_root(project, policy)
     seen = set()
     result = [[], []]
     for group, paths in enumerate(transfers):
@@ -144,60 +262,113 @@ def drive_files(project, job, policy):
 
 
 def run(project, job, safe_path):
-    ROOT.mkdir(parents=True,exist_ok=True,mode=0o700)
+    ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
+    LEASES_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
     log = job['_log']
+
     def stage(text):
-        with log.open('a') as stream: print(text,file=stream,flush=True)
+        with log.open('a') as stream:
+            print(text, file=stream, flush=True)
+
     stage('正在核对 Colab 授权与预算')
     recover()
     policy = json.loads(CONFIG.read_text())
-    accelerator = str(job.get('accelerator','CPU')).upper()
-    if accelerator not in policy['allowed_accelerators'] or accelerator not in ('CPU','T4','L4','A100','H100','G4'):
+    accelerator = str(job.get('accelerator', 'CPU')).upper()
+    if accelerator not in policy['allowed_accelerators'] or accelerator not in ('CPU', 'T4', 'L4', 'A100', 'H100', 'G4'):
         raise ValueError('BUDGET_BLOCKED：宿主机策略未放行此加速器。')
     deadline = job_deadline(job)
     drive_in, drive_out = drive_files(project, job, policy)
     drive_dir = '/content/drive/MyDrive/ResearchHub_Colab/' + project.name
-    script = safe_path(project, job.get('script',''),('03_代码与脚本',))
-    if script.suffix != '.py' or not script.is_file() or script.stat().st_size > 2_000_000: raise ValueError('需要 2 MB 以内的 Python 入口脚本')
-    args=job.get('args',[])
-    if not isinstance(args,list) or not all(isinstance(a,str) for a in args): raise ValueError('args 应为字符串数组')
-    files=[]
-    for field in ('inputs','outputs'):
-        paths = job.get(field,[])
-        if not isinstance(paths,list) or len(paths)>32: raise ValueError('文件清单格式错误')
-        paths=[safe_path(project,p,('02_实验与验证',)) for p in paths]
-        if any(not re.fullmatch(r'[\w.-]+',p.name) or not p.suffix for p in paths): raise ValueError('仅允许具备扩展名的独立文件')
+    script = safe_path(project, job.get('script', ''), ('03_代码与脚本',))
+    if script.suffix != '.py' or not script.is_file() or script.stat().st_size > 2_000_000:
+        raise ValueError('需要 2 MB 以内的 Python 入口脚本')
+    args = job.get('args', [])
+    if not isinstance(args, list) or not all(isinstance(a, str) for a in args):
+        raise ValueError('args 应为字符串数组')
+    files = []
+    for field in ('inputs', 'outputs'):
+        paths = job.get(field, [])
+        if not isinstance(paths, list) or len(paths) > 32:
+            raise ValueError('文件清单格式错误')
+        paths = [safe_path(project, p, ('02_实验与验证',)) for p in paths]
+        if any(not re.fullmatch(r'[\w.-]+', p.name) or not p.suffix for p in paths):
+            raise ValueError('仅允许具备扩展名的独立文件')
         files.append(paths)
-    inputs,outputs=files
-    if any(not p.is_file() for p in inputs) or any(p.exists() for p in outputs): raise ValueError('输入缺失或目标产物已存在，请使用独立输出路径')
-    if len({p.name for p in inputs+outputs})!=len(inputs+outputs): raise ValueError('云端输入和输出文件名必须各自唯一')
+    inputs, outputs = files
+    if any(not p.is_file() for p in inputs) or any(p.exists() for p in outputs):
+        raise ValueError('输入缺失或目标产物已存在，请使用独立输出路径')
+    if len({p.name for p in inputs + outputs}) != len(inputs + outputs):
+        raise ValueError('云端输入和输出文件名必须各自唯一')
     ck_folder = None
     if 'checkpoint_key' in job:
-        ck_folder = colab_checkpoint.store(ROOT, project, job['checkpoint_key'], script, args,
-                                           [(p, '/content/'+p.name) for p in inputs] + list(drive_in))
+        ck_folder = colab_checkpoint.store(
+            ROOT,
+            project,
+            job['checkpoint_key'],
+            script,
+            args,
+            [(p, '/content/' + p.name) for p in inputs] + list(drive_in),
+        )
         versions = colab_checkpoint.history(ck_folder)
-        stage('检查点 '+ck_folder.name+' · '+(f'将从 step={int(versions[-1].name)} 续跑' if versions else '首次运行'))
-    ledger=ROOT/(datetime.date.today().isoformat()+'.json')
-    reservations=json.loads(ledger.read_text()) if ledger.exists() else {}
-    key=project.name+'/'+job['job_id']
-    if key in reservations:
-        raise ValueError('BUDGET_BLOCKED：今天已提交过同一 job_id。')
-    baseline=preflight()
-    name='rh-'+uuid.uuid4().hex[:16]
-    lease=ROOT/'lease.json'
-    record=dict(session=name,baseline=baseline,job=key)
-    reservations[key]=job.get('timeout_s') or 0
-    replace(ledger,json.dumps(reservations)); replace(lease,json.dumps(record))
+        stage('检查点 ' + ck_folder.name + ' · ' + (f'将从 step={int(versions[-1].name)} 续跑' if versions else '首次运行'))
+
+    name = 'rh-' + uuid.uuid4().hex[:16]
+    lease = LEASES_DIR / f'{name}.json'
+    key = project.name + '/' + job['job_id']
+
+    with _file_lock():
+        ledger = ROOT / (datetime.date.today().isoformat() + '.json')
+        reservations = json.loads(ledger.read_text()) if ledger.exists() else {}
+        if key in reservations:
+            raise ValueError('BUDGET_BLOCKED：今天已提交过同一 job_id。')
+        reservations[key] = job.get('timeout_s') or 0
+        replace(ledger, json.dumps(reservations))
+        _ACTIVE_SESSIONS.add(name)
+
     def call(args, output=None, operation_limit=None):
         return command(args, time_left(deadline, operation_limit), output)
-    awake=None
+
+    awake = None
     try:
-        awake=subprocess.Popen(['/usr/bin/caffeinate','-i','-w',str(os.getpid())],stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-        stage('正在分配 '+accelerator+' · '+name)
-        call(['new','-s',name]+([] if accelerator=='CPU' else ['--gpu',accelerator]), operation_limit=180)
-        record['endpoint']=call(['endpoint',name], operation_limit=15); replace(lease,json.dumps(record))
-        if not record['endpoint']: raise ValueError('云端分配身份未确认')
-        for p in inputs: call(['upload','-s',name,str(p),'/content/'+p.name])
+        awake = subprocess.Popen(
+            ['/usr/bin/caffeinate', '-i', '-w', str(os.getpid())],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        # 分配云实例时支持多开排队退避（当触发 Google 账号并发上限 CAPACITY 且有其他活跃会话时，自动等待重试）
+        max_alloc_attempts = 4
+        for attempt in range(1, max_alloc_attempts + 1):
+            with _ALLOC_LOCK:
+                baseline = preflight()
+                record = dict(
+                    session=name,
+                    baseline=baseline,
+                    job=key,
+                    project=project.name,
+                    accelerator=accelerator,
+                    pid=os.getpid(),
+                    started_at=datetime.datetime.now().isoformat(timespec='seconds'),
+                )
+                replace(lease, json.dumps(record))
+                stage('正在分配 ' + accelerator + ' · ' + name + (f' (第 {attempt} 次尝试)' if attempt > 1 else ''))
+                try:
+                    call(['new', '-s', name] + ([] if accelerator == 'CPU' else ['--gpu', accelerator]), operation_limit=180)
+                    record['endpoint'] = call(['endpoint', name], operation_limit=15)
+                    replace(lease, json.dumps(record))
+                    if not record['endpoint']:
+                        raise ValueError('云端分配身份未确认')
+                    break
+                except ValueError as exc:
+                    if 'CAPACITY' in str(exc) and attempt < max_alloc_attempts and len(_ACTIVE_SESSIONS) > 1:
+                        wait_s = min(45, max(5, int(time_left(deadline, 45) or 45) - 5))
+                        stage(f'云端并发槽位暂满 ({exc})，当前有其他课题并行运行中，等待 {wait_s}s 后自动重试...')
+                    else:
+                        raise
+            time.sleep(wait_s)
+
+        for p in inputs:
+            call(['upload', '-s', name, str(p), '/content/' + p.name])
         setup = (
             "import os, pathlib, sys, types\n"
             f"os.environ['RH_DRIVE_DIR'] = {drive_dir!r}\n"
@@ -219,20 +390,33 @@ def run(project, job, safe_path):
                 parent = str((Path(drive_dir) / rel).parent)
                 setup += f"pathlib.Path({parent!r}).mkdir(parents=True, exist_ok=True)\n"
         with tempfile.TemporaryDirectory() as tmp:
-            marker='RH_COMPLETED_'+uuid.uuid4().hex
-            wrapper=Path(tmp)/'entry.py'
-            encoded=base64.b64encode(script.read_bytes()).decode()
-            wrapper.write_text(setup + f'import base64,sys\n__file__={script.name!r}\nsys.argv={[script.name,*args]!r}\nexec(compile(base64.b64decode({encoded!r}),__file__,"exec"),globals())\nprint({marker!r},flush=True)\n')
-            stage('云端已分配，开始执行 '+script.name)
+            marker = 'RH_COMPLETED_' + uuid.uuid4().hex
+            wrapper = Path(tmp) / 'entry.py'
+            encoded = base64.b64encode(script.read_bytes()).decode()
+            wrapper.write_text(
+                setup
+                + f'import base64,sys,pathlib\n'
+                f'__file__={script.name!r}\n'
+                f'sys.argv={[script.name,*args]!r}\n'
+                f'_rh_script_bytes=base64.b64decode({encoded!r})\n'
+                f'pathlib.Path(__file__).write_bytes(_rh_script_bytes)\n'
+                f'exec(compile(_rh_script_bytes,__file__,"exec"),globals())\n'
+                f'print({marker!r},flush=True)\n'
+            )
+            stage('云端已分配，开始执行 ' + script.name)
             if ck_folder is not None:
                 colab_checkpoint.execute(ck_folder, call, name, Path(tmp), script, args, setup, marker, log, stage)
             else:
-                with log.open('ab',buffering=0) as out: call(['exec','-s',name,'--timeout','0','-f',str(wrapper)],out)
+                with log.open('ab', buffering=0) as out:
+                    call(['exec', '-s', name, '--timeout', '0', '-f', str(wrapper)], out)
             with log.open('rb') as f:
-                f.seek(max(0,log.stat().st_size-65536));tail=f.read().decode(errors='replace')
-            if marker not in [line.strip() for line in tail.splitlines()]: raise ValueError('云端脚本未正常返回，请查看运行日志尾部。')
+                f.seek(max(0, log.stat().st_size - 65536))
+                tail = f.read().decode(errors='replace')
+            if marker not in [line.strip() for line in tail.splitlines()]:
+                raise ValueError('云端脚本未正常返回，请查看运行日志尾部。')
             for p in outputs:
-                local=Path(tmp)/p.name; call(['download','-s',name,'/content/'+p.name,str(local)])
+                local = Path(tmp) / p.name
+                call(['download', '-s', name, '/content/' + p.name, str(local)])
             drive_results = []
             for dest, rel in drive_out:
                 local = Path(tmp) / ('rh_output_' + uuid.uuid4().hex)
@@ -252,15 +436,20 @@ def run(project, job, safe_path):
             if drive_results:
                 stage(f'已写入 Mac 的 Drive 课题目录 {len(drive_results)} 个文件，云端同步由桌面版 Drive 完成')
             for p in outputs:
-                p.parent.mkdir(parents=True,exist_ok=True);os.replace(Path(tmp)/p.name,p)
+                p.parent.mkdir(parents=True, exist_ok=True)
+                os.replace(Path(tmp) / p.name, p)
     finally:
         stage('正在向 Google 确认释放运行时')
-        try: recover()
+        try:
+            _release_lease_file(lease)
         except Exception as exc:
-            stage('RELEASE_PENDING · '+name); raise RuntimeError('RELEASE_PENDING：请核对云端，已阻止继续开机。'+str(exc)) from exc
+            stage('RELEASE_PENDING · ' + name)
+            raise RuntimeError('RELEASE_PENDING：请核对云端，已阻止继续开机。' + str(exc)) from exc
         finally:
+            with _file_lock():
+                _ACTIVE_SESSIONS.discard(name)
             if awake is not None:
                 awake.terminate()
                 awake.wait()
         stage('云端释放已确认')
-    return True, f'Colab {accelerator} 完成，云端释放已确认，回收产物 {len(outputs) + len(drive_out)} 个。\n'+tail[-2000:]
+    return True, f'Colab {accelerator} 完成，云端释放已确认，回收产物 {len(outputs) + len(drive_out)} 个。\n' + tail[-2000:]

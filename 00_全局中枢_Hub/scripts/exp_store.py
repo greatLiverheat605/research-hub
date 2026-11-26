@@ -14,14 +14,18 @@ import re
 import sqlite3
 import subprocess
 import sys
+import os
+import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+_DB_LOCK = threading.Lock()
+
 SCRIPTS_DIR = Path(__file__).resolve().parent
 HUB_DIR = SCRIPTS_DIR.parent
-EXCHANGE_ROOT = HUB_DIR.parent
+EXCHANGE_ROOT = Path(os.environ.get("RH_EXCHANGE_ROOT", HUB_DIR.parent))
 PROJECTS_DIR = EXCHANGE_ROOT / "01_在研课题_Projects"
-DB_PATH = HUB_DIR / "experiments.sqlite"
+DB_PATH = EXCHANGE_ROOT / "00_全局中枢_Hub" / "experiments.sqlite"
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS runs (
@@ -111,7 +115,7 @@ def record_dispatch_run(
     job_payload: Optional[Dict[str, Any]] = None,
     detail: str = "",
     db_path: Path = DB_PATH,
-) -> None:
+) -> int:
     payload = job_payload or {}
     script_path = str(payload.get("script") or payload.get("body_file") or payload.get("file") or "")
     artifacts: List[str] = []
@@ -133,30 +137,33 @@ def record_dispatch_run(
     dur = _calc_duration(started_at, finished_at)
     sha = _detect_git_sha(project_dir)
 
-    with get_conn(db_path) as conn:
-        conn.execute(
-            """
-            INSERT OR IGNORE INTO runs (
-                project, job_id, action, status, started_at, finished_at, duration_sec,
-                script_path, params_json, metrics_json, artifacts_json, git_sha, summary
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                project_dir.name,
-                job_id,
-                action,
-                status,
-                started_at,
-                finished_at,
-                dur,
-                script_path,
-                json.dumps(params, ensure_ascii=False),
-                json.dumps(metrics, ensure_ascii=False),
-                json.dumps(artifacts, ensure_ascii=False),
-                sha,
-                summary,
-            ),
-        )
+    with _DB_LOCK:
+        with get_conn(db_path) as conn:
+            cursor = conn.execute(
+                """
+                INSERT OR IGNORE INTO runs (
+                    project, job_id, action, status, started_at, finished_at, duration_sec,
+                    script_path, params_json, metrics_json, artifacts_json, git_sha, summary
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    project_dir.name,
+                    job_id,
+                    action,
+                    status,
+                    started_at,
+                    finished_at,
+                    dur,
+                    script_path,
+                    json.dumps(params, ensure_ascii=False),
+                    json.dumps(metrics, ensure_ascii=False),
+                    json.dumps(artifacts, ensure_ascii=False),
+                    sha,
+                    summary,
+                ),
+            )
+
+            return cursor.rowcount
 
 
 def query_runs(project: Optional[str] = None, limit: int = 50, db_path: Path = DB_PATH) -> List[Dict[str, Any]]:
@@ -194,8 +201,6 @@ def backfill_from_done(projects_dir: Path = PROJECTS_DIR, db_path: Path = DB_PAT
             continue
         done_dir = proj / "_dispatch" / "done"
         arch_dir = proj / "_dispatch" / "archive"
-        if not done_dir.is_dir():
-            continue
         for md_file in sorted(done_dir.glob("*_result.md")):
             text = md_file.read_text(encoding="utf-8", errors="ignore")
             job_id = md_file.stem.removesuffix("_result")
@@ -217,11 +222,7 @@ def backfill_from_done(projects_dir: Path = PROJECTS_DIR, db_path: Path = DB_PAT
                 except Exception:
                     payload = {}
 
-            before = len(query_runs(proj.name, limit=1000, db_path=db_path))
-            record_dispatch_run(proj, job_id, action, status, started, finished, payload, detail, db_path=db_path)
-            after = len(query_runs(proj.name, limit=1000, db_path=db_path))
-            if after > before:
-                imported += 1
+            imported += record_dispatch_run(proj, job_id, action, status, started, finished, payload, detail, db_path=db_path)
 
         # 同时回填 runnotify 生成的 run_manifest_*.json
         for mf in sorted(proj.glob("run_manifest_*.json")):
@@ -243,15 +244,15 @@ def backfill_from_done(projects_dir: Path = PROJECTS_DIR, db_path: Path = DB_PAT
             cmd_list = mdata.get("command") or []
             cmd_str = " ".join(str(x) for x in cmd_list)
             action = "colab_exec" if "colab" in cmd_str else "runnotify"
-            ok = (mdata.get("exit_code") == 0) and bool(mdata.get("complete_ok_detected", True))
-            status = "SUCCESS" if ok else "FAILED"
+            status = "FAILED" if mdata.get("exit_code") != 0 else ("SUCCESS" if mdata.get("complete_ok_detected") else "DONE")
             log_rel = str(mdata.get("log_file") or "")
             detail = f"Command: `{cmd_str}` | elapsed: {dur}s | COMPLETE_OK={mdata.get('complete_ok_detected')}"
-            if log_rel and (proj / log_rel).is_file():
-                tail = (proj / log_rel).read_text(encoding="utf-8", errors="ignore").splitlines()[-15:]
+            if log_rel and Path(log_rel).name == log_rel and not (proj/log_rel).is_symlink() and (proj / log_rel).is_file():
+                with (proj/log_rel).open("rb") as f:
+                    f.seek(max(0,os.fstat(f.fileno()).st_size-16384))
+                    tail = f.read().decode("utf-8", "replace").splitlines()[-15:]
                 detail += "\n" + "\n".join(tail)
-            before = len(query_runs(proj.name, limit=1000, db_path=db_path))
-            record_dispatch_run(
+            imported += record_dispatch_run(
                 proj,
                 f"run_{ts}",
                 action,
@@ -262,9 +263,6 @@ def backfill_from_done(projects_dir: Path = PROJECTS_DIR, db_path: Path = DB_PAT
                 detail,
                 db_path=db_path,
             )
-            after = len(query_runs(proj.name, limit=1000, db_path=db_path))
-            if after > before:
-                imported += 1
     return imported
 
 
