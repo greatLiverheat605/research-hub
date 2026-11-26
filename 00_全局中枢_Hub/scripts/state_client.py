@@ -64,20 +64,15 @@ def _read_nocache(path: Path) -> bytes:
 
 
 def _refresh_guest_ubc(path: Path, data: bytes) -> None:
-    """通过客机自身 VFS 写入通道刷新客机内核 UBC 页缓存，同时保持原 Inode 不变。
-    在 VirtioFS 下，只要由客机发起一次 VFS write+ftruncate+fsync，客机内核 UBC 中的旧页与尾部 NUL 填充会立即被真实内容覆盖！
+    """在客机内以 O_WRONLY | O_TRUNC ('wb'，且写时绝不开启 F_NOCACHE) 打开原文件写入：
+    1) O_TRUNC 触发客机 XNU 内核调用 ubc_setsize(vp, 0)，当场销毁客机 RAM 中该 Inode 的全部旧 UBC 缓存页（彻底清除任何尾部 NUL 填充页）；
+    2) 标准缓冲 write 将新字节直接写入客机 UBC 缓存页并穿透同步到宿主机（与 03_WORK_LOG.md 的写入路径完全一致），确保客机 shell 与 MCP 100% 同步！
     """
     try:
-        fd = os.open(path, os.O_RDWR | os.O_NOFOLLOW)
-        try:
-            invalidate_ubc_fd(fd)
-            os.lseek(fd, 0, os.SEEK_SET)
-            os.write(fd, data)
-            os.ftruncate(fd, len(data))
-            os.fsync(fd)
-            invalidate_ubc_fd(fd)
-        finally:
-            os.close(fd)
+        with open(path, 'wb') as wf:
+            wf.write(data)
+            wf.flush()
+            os.fsync(wf.fileno())
     except OSError:
         pass
 

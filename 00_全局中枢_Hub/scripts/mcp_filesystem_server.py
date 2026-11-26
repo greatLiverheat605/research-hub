@@ -142,10 +142,8 @@ def _heal_from_virtiofs_sidecar(resolved_path):
         with open(latest, "rb") as sf:
             fresh_bytes = sf.read()
         if _hashlib.sha256(fresh_bytes).hexdigest() == expected_sha:
-            with open(resolved_path, "r+b") as wf:
-                wf.seek(0)
+            with open(resolved_path, "wb") as wf:
                 wf.write(fresh_bytes)
-                wf.truncate()
                 wf.flush()
                 os.fsync(wf.fileno())
     except OSError:
