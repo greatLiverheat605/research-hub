@@ -1163,7 +1163,19 @@ def _execute_single_job(project_dir: Path, run_path: Path, jf_name: str, dotenv:
         elif action == "scout_request":
             ok, detail = _handle_scout_request(project_dir, job)
         else:
-            ok, detail = False, f"拒绝执行：未知或不在白名单内的 action=`{action}`"
+            # 若常驻进程因在途 Colab 长任务尚未触发 os.execv 热重载，动态加载磁盘最新 dispatch_worker 处理新增白名单动作
+            import importlib.util
+            disk_self = Path(__file__).resolve()
+            spec = importlib.util.spec_from_file_location("_dispatch_worker_latest", str(disk_self))
+            mod = importlib.util.module_from_spec(spec) if spec and spec.loader else None
+            if mod is not None and spec and spec.loader:
+                spec.loader.exec_module(mod)
+                if hasattr(mod, "_handle_gitea_download_attachment") and action in ("gitea_download_attachment", "gitea_fetch_attachment", "gitea_download"):
+                    ok, detail = mod._handle_gitea_download_attachment(project_dir, job, dotenv)
+                else:
+                    ok, detail = False, f"拒绝执行：未知或不在白名单内的 action=`{action}`"
+            else:
+                ok, detail = False, f"拒绝执行：未知或不在白名单内的 action=`{action}`"
     except Exception as exc:
         ok, detail = False, f"执行异常：{type(exc).__name__}: {exc}"
         if action == "colab_py" and log_path and log_path.is_file():
