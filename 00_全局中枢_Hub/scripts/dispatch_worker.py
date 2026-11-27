@@ -348,14 +348,55 @@ def _auto_sync_inbox_attachments(project: Path, repo: str, token: str) -> str:
         except Exception as exc:
             print(f"[Gitea-AutoAttach] 下载附件 {u} 失败: {exc}", flush=True)
 
+    # 同时自动扫描 Gitea Releases 中的资产（<= 100 MB），自动预下载尚未落盘的 Release 附件（如 C02_lead_claims_176.zip / C01_* 等）
+    try:
+        rel_code, rel_list = _gitea_api(repo, token, "releases?limit=30")
+        if rel_code == 200 and isinstance(rel_list, list):
+            for rel_obj in rel_list:
+                tname = str(rel_obj.get("tag_name") or "")
+                for asset in (rel_obj.get("assets") or []):
+                    aname = str(asset.get("name") or "")
+                    aurl = str(asset.get("browser_download_url") or "")
+                    asize = int(asset.get("size") or 0)
+                    aid = f"release:{tname}/{aname}"
+                    if not aname or not aurl or asize > 100 * 1024 * 1024:
+                        continue
+                    rec = ledger.get(aid)
+                    if isinstance(rec, dict) and rec.get("local_path"):
+                        lp = project / str(rec["local_path"])
+                        if lp.is_file() and lp.stat().st_size == rec.get("bytes"):
+                            continue
+                    target_local = project / "02_实验与验证" / "_inbox_copy" / aname
+                    if target_local.is_file() and target_local.stat().st_size == asize:
+                        b = target_local.read_bytes()
+                        ledger[aid] = {
+                            "uuid": aid,
+                            "url": aurl,
+                            "server_filename": aname,
+                            "local_path": str(target_local.relative_to(project)),
+                            "bytes": len(b),
+                            "sha256": hashlib.sha256(b).hexdigest(),
+                        }
+                        continue
+                    try:
+                        info = _download_single_gitea_attachment(project, repo, token, aurl, save_as=f"02_实验与验证/_inbox_copy/{aname}")
+                        info["uuid"] = aid
+                        ledger[aid] = info
+                        new_count += 1
+                    except Exception as exc:
+                        print(f"[Gitea-AutoAttach] 下载 Release 资产 {aid} 失败: {exc}", flush=True)
+    except Exception:
+        pass
+
     # 同时把 02_实验与验证/_inbox_copy/*.zip 中已有的手动下载包也纳入索引表方便 Claude 核查
     tsv_lines = ["attachment_uuid\tfilename\tlocal_path\tsize_bytes\tsha256"]
     recorded_paths = set()
-    for u in uuids:
-        rec = ledger.get(u)
-        if not isinstance(rec, dict):
+    for u, rec in ledger.items():
+        if not isinstance(rec, dict) or not rec.get("local_path"):
             continue
         lp = str(rec.get("local_path") or "")
+        if lp in recorded_paths:
+            continue
         recorded_paths.add(lp)
         tsv_lines.append(f"{u}\t{rec.get('server_filename','')}\t{lp}\t{rec.get('bytes',0)}\t{rec.get('sha256','')}")
 
