@@ -329,14 +329,22 @@ def _auto_sync_inbox_attachments(project: Path, repo: str, token: str) -> str:
     new_count = 0
     for u in uuids:
         rec = ledger.get(u)
-        if isinstance(rec, dict) and rec.get("local_path"):
-            lp = project / str(rec["local_path"])
-            if lp.is_file() and lp.stat().st_size == rec.get("bytes"):
+        if isinstance(rec, dict):
+            if rec.get("status") == "404_deleted":
                 continue
+            if rec.get("local_path"):
+                lp = project / str(rec["local_path"])
+                if lp.is_file() and lp.stat().st_size == rec.get("bytes"):
+                    continue
         try:
             info = _download_single_gitea_attachment(project, repo, token, u)
             ledger[u] = info
             new_count += 1
+        except urllib.error.HTTPError as he:
+            if he.code == 404:
+                ledger[u] = {"uuid": u, "status": "404_deleted"}
+            else:
+                print(f"[Gitea-AutoAttach] 下载附件 {u} 失败: {he}", flush=True)
         except Exception as exc:
             print(f"[Gitea-AutoAttach] 下载附件 {u} 失败: {exc}", flush=True)
 
