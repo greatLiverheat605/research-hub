@@ -152,16 +152,328 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
+def _safe_extract_zip(zip_path: Path, target_dir: Path) -> List[str]:
+    """防 Zip-Slip 与防软链接逃逸的安全解压，所有解压文件设为 0644。"""
+    import zipfile
+    target_dir.mkdir(parents=True, exist_ok=True)
+    base_real = target_dir.resolve()
+    extracted: List[str] = []
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        for info in zf.infolist():
+            rel_name = info.filename
+            if not rel_name or rel_name.startswith("/") or ".." in Path(rel_name).parts:
+                raise PermissionError(f"拒绝解压越界路径：{rel_name}")
+            # 拦截 zip 内置 symlink (UNIX mode S_IFLNK = 0o120000)
+            if ((info.external_attr >> 16) & 0o170000) == 0o120000:
+                raise PermissionError(f"拒绝解压符号链接条目：{rel_name}")
+            dest = (target_dir / rel_name).resolve()
+            if not _is_within(dest, base_real):
+                raise PermissionError(f"解压目标越出目录：{rel_name}")
+            if info.is_dir() or rel_name.endswith("/"):
+                dest.mkdir(parents=True, exist_ok=True)
+            else:
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                with zf.open(info, "r") as src, dest.open("wb") as out:
+                    shutil.copyfileobj(src, out)
+                dest.chmod(0o644)
+                extracted.append(str(dest.relative_to(base_real)))
+    return extracted
+
+
+def _parse_content_disposition_filename(header_val: str, fallback: str) -> str:
+    if not header_val:
+        return fallback
+    m_utf8 = re.search(r"filename\*=UTF-8''([^;\s]+)", header_val, re.I)
+    if m_utf8:
+        name = urllib.parse.unquote(m_utf8.group(1).strip("\"'"))
+    else:
+        m = re.search(r'filename="?([^";\r\n]+)"?', header_val, re.I)
+        name = m.group(1).strip() if m else fallback
+    name = Path(name).name
+    safe = re.sub(r"[^\w.\-\u4e00-\u9fff]+", "_", name).strip("._")
+    return safe or fallback
+
+
+def _download_single_gitea_attachment(
+    project_dir: Path,
+    repo_url: str,
+    token: str,
+    uuid_or_url: str,
+    save_as: Optional[str] = None,
+    expected_sha256: Optional[str] = None,
+    unpack_to: Optional[str] = None,
+) -> Dict[str, Any]:
+    """从课题绑定的 Gitea 服务器安全下载单个附件 (/attachments/<uuid> 或 Release 资产) 到 02_实验与验证/_inbox_copy/。"""
+    import hashlib
+    parsed_repo = urllib.parse.urlparse(repo_url)
+    base_origin = f"{parsed_repo.scheme}://{parsed_repo.netloc}"
+
+    raw_ref = str(uuid_or_url or "").strip()
+    m_uuid = re.search(r"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})", raw_ref, re.I)
+    att_uuid = m_uuid.group(1).lower() if m_uuid else ""
+
+    if re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", raw_ref, re.I):
+        dl_url = f"{base_origin}/attachments/{att_uuid}"
+    elif raw_ref.startswith("/"):
+        dl_url = f"{base_origin}{raw_ref}"
+    elif raw_ref.startswith(("http://", "https://")):
+        u_parsed = urllib.parse.urlparse(raw_ref)
+        if u_parsed.netloc.lower() != parsed_repo.netloc.lower():
+            raise PermissionError(f"安全拦截：附件域名 `{u_parsed.netloc}` 与本课题授权 Gitea `{parsed_repo.netloc}` 不一致")
+        dl_url = raw_ref
+    else:
+        raise ValueError(f"无效的 Gitea 附件 UUID 或 URL：{raw_ref}")
+
+    headers = {"User-Agent": "ResearchHub-Dispatch/1.0"}
+    if token:
+        headers["Authorization"] = f"token {token}"
+    req = urllib.request.Request(dl_url, headers=headers, method="GET")
+    inbox_copy = project_dir / "02_实验与验证" / "_inbox_copy"
+    inbox_copy.mkdir(parents=True, exist_ok=True)
+
+    with urllib.request.build_opener(urllib.request.ProxyHandler({})).open(req, timeout=180) as resp:
+        cd = resp.headers.get("Content-Disposition") or ""
+        fallback_name = (att_uuid[:12] + ".bin") if att_uuid else Path(urllib.parse.urlparse(dl_url).path).name or "attachment.bin"
+        server_filename = _parse_content_disposition_filename(cd, fallback_name)
+        if save_as:
+            dest_path = _safe_rel_path(project_dir, save_as, ("02_实验与验证", "05_Gitea协作同步区"))
+        else:
+            dest_path = inbox_copy / server_filename
+
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        h = hashlib.sha256()
+        total_bytes = 0
+        max_bytes = 250 * 1024 * 1024  # 250 MB safety cap
+        with tempfile.NamedTemporaryFile(dir=dest_path.parent, prefix=".gitea_dl_", delete=False) as tf:
+            tmp_path = Path(tf.name)
+            try:
+                while True:
+                    chunk = resp.read(65536)
+                    if not chunk:
+                        break
+                    total_bytes += len(chunk)
+                    if total_bytes > max_bytes:
+                        raise ValueError("附件超过 250 MB 自动下载上限")
+                    tf.write(chunk)
+                    h.update(chunk)
+                tf.flush()
+                os.fchmod(tf.fileno(), 0o644)
+                os.fsync(tf.fileno())
+            except BaseException:
+                tmp_path.unlink(missing_ok=True)
+                raise
+
+        actual_sha = h.hexdigest()
+        if expected_sha256:
+            exp_clean = expected_sha256.strip().lower()
+            if not actual_sha.startswith(exp_clean):
+                tmp_path.unlink(missing_ok=True)
+                raise ValueError(f"附件 SHA-256 校验不匹配：期望 `{exp_clean}`，实际 `{actual_sha}`")
+
+        # 若目标已存在且哈希不同，但未显式指定 save_as，则同时保留带短哈希/UUID 的无损文件防覆盖
+        if not save_as and dest_path.is_file():
+            existing_sha = hashlib.sha256(dest_path.read_bytes()).hexdigest()
+            if existing_sha != actual_sha:
+                stem, suf = dest_path.stem, dest_path.suffix
+                tag_prefix = att_uuid[:8] if att_uuid else actual_sha[:8]
+                dest_path = dest_path.with_name(f"{stem}_{tag_prefix}{suf}")
+
+        os.replace(tmp_path, dest_path)
+
+    rel_saved = str(dest_path.relative_to(project_dir))
+    unpacked_files: List[str] = []
+    unpack_rel_out = ""
+    if unpack_to or (unpack_to is None and False):
+        target_unpack = _safe_rel_path(project_dir, str(unpack_to), ("02_实验与验证", "05_Gitea协作同步区"))
+        unpacked_files = _safe_extract_zip(dest_path, target_unpack)
+        unpack_rel_out = str(target_unpack.relative_to(project_dir))
+
+    return {
+        "uuid": att_uuid,
+        "url": dl_url,
+        "server_filename": server_filename,
+        "local_path": rel_saved,
+        "bytes": total_bytes,
+        "sha256": actual_sha,
+        "unpacked_to": unpack_rel_out,
+        "unpacked_count": len(unpacked_files),
+        "unpacked_files_sample": unpacked_files[:25],
+    }
+
+
+def _auto_sync_inbox_attachments(project: Path, repo: str, token: str) -> str:
+    """扫描 ISSUES_DETAIL_INBOX.md 中的 /attachments/<uuid> 链接，自动静默预下载所有未落盘附件到 02_实验与验证/_inbox_copy/，
+    并生成 02_实验与验证/_inbox_copy/ATTACHMENTS_INDEX.tsv（及 05_Gitea协作同步区/ATTACHMENTS_INDEX.tsv），彻底免除宿主机手工下载。
+    """
+    import hashlib
+    inbox_md = project / "05_Gitea协作同步区" / "ISSUES_DETAIL_INBOX.md"
+    if not inbox_md.is_file():
+        return ""
+    state_root = Path.home() / ".local/state/researchhub/issues" / project.name
+    state_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    ledger_file = state_root / "attachments_ledger.json"
+    try:
+        ledger: Dict[str, Any] = json.loads(ledger_file.read_text(encoding="utf-8")) if ledger_file.is_file() else {}
+    except Exception:
+        ledger = {}
+
+    text = inbox_md.read_text(encoding="utf-8", errors="replace")
+    uuids = []
+    seen_u = set()
+    for m in re.finditer(r"/attachments/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})", text, re.I):
+        u = m.group(1).lower()
+        if u not in seen_u:
+            seen_u.add(u)
+            uuids.append(u)
+
+    new_count = 0
+    for u in uuids:
+        rec = ledger.get(u)
+        if isinstance(rec, dict) and rec.get("local_path"):
+            lp = project / str(rec["local_path"])
+            if lp.is_file() and lp.stat().st_size == rec.get("bytes"):
+                continue
+        try:
+            info = _download_single_gitea_attachment(project, repo, token, u)
+            ledger[u] = info
+            new_count += 1
+        except Exception as exc:
+            print(f"[Gitea-AutoAttach] 下载附件 {u} 失败: {exc}", flush=True)
+
+    # 同时把 02_实验与验证/_inbox_copy/*.zip 中已有的手动下载包也纳入索引表方便 Claude 核查
+    tsv_lines = ["attachment_uuid\tfilename\tlocal_path\tsize_bytes\tsha256"]
+    recorded_paths = set()
+    for u in uuids:
+        rec = ledger.get(u)
+        if not isinstance(rec, dict):
+            continue
+        lp = str(rec.get("local_path") or "")
+        recorded_paths.add(lp)
+        tsv_lines.append(f"{u}\t{rec.get('server_filename','')}\t{lp}\t{rec.get('bytes',0)}\t{rec.get('sha256','')}")
+
+    inbox_copy = project / "02_实验与验证" / "_inbox_copy"
+    if inbox_copy.is_dir():
+        for zp in sorted(inbox_copy.glob("*.zip")):
+            rel_zp = str(zp.relative_to(project))
+            if rel_zp in recorded_paths or not zp.is_file():
+                continue
+            try:
+                b = zp.read_bytes()
+                tsv_lines.append(f"local\t{zp.name}\t{rel_zp}\t{len(b)}\t{hashlib.sha256(b).hexdigest()}")
+            except OSError:
+                pass
+
+    tsv_body = "\n".join(tsv_lines) + "\n"
+    issue_inbox.replace(ledger_file, json.dumps(ledger, ensure_ascii=False, indent=2), mode=0o600)
+    if inbox_copy.is_dir():
+        issue_inbox.publish_shared(inbox_copy / "ATTACHMENTS_INDEX.tsv", tsv_body, state_root)
+    sync_folder = project / "05_Gitea协作同步区"
+    if sync_folder.is_dir():
+        issue_inbox.publish_shared(sync_folder / "ATTACHMENTS_INDEX.tsv", tsv_body, state_root)
+    return f"（已自动同步 Gitea 附件索引 `02_实验与验证/_inbox_copy/ATTACHMENTS_INDEX.tsv`，共 {len(uuids)} 个远端附件，本次新下载 {new_count} 个）"
+
+
+def _handle_gitea_download_attachment(project_dir: Path, job: Dict[str, Any], dotenv: Dict[str, str]) -> Tuple[bool, str]:
+    """白名单动作 gitea_download_attachment：支持按 uuid / url / issue_number / comment_id / release tag+asset_name 下载并可选自动解压。"""
+    repo, _, token, _, _ = _load_gitea_cfg(project_dir, dotenv)
+    if not repo or not token:
+        return False, "缺少 Gitea repo_url 或 GITEA_TOKEN"
+
+    save_as = job.get("save_as") or job.get("output")
+    expected_sha = job.get("expected_sha256") or job.get("sha256")
+    unpack_to = job.get("unpack_to")
+    if not unpack_to and job.get("unpack") is True:
+        # 自动生成 unpack_<stem> 目录
+        unpack_to = "__AUTO__"
+
+    targets: List[str] = []
+    if job.get("uuid") or job.get("attachment_id"):
+        targets.append(str(job.get("uuid") or job.get("attachment_id")).strip())
+    elif job.get("url"):
+        targets.append(str(job["url"]).strip())
+    elif isinstance(job.get("urls"), list):
+        targets.extend(str(u).strip() for u in job["urls"] if str(u).strip())
+    elif job.get("tag") and job.get("asset_name"):
+        tag = str(job["tag"]).strip()
+        asset_name = str(job["asset_name"]).strip()
+        code, rel_obj = _gitea_api(repo, token, f"releases/tags/{tag}")
+        if code != 200 or not isinstance(rel_obj, dict):
+            return False, f"查询 Release `{tag}` 失败 (HTTP {code})"
+        for a in (rel_obj.get("assets") or []):
+            if a.get("name") == asset_name and a.get("browser_download_url"):
+                targets.append(str(a["browser_download_url"]))
+                break
+        if not targets:
+            return False, f"Release `{tag}` 下未找到附件 `{asset_name}`"
+    elif job.get("comment_id") or job.get("issue_number"):
+        if job.get("comment_id"):
+            cid = int(job["comment_id"])
+            code, cobj = _gitea_api(repo, token, f"issues/comments/{cid}")
+            if code != 200 or not isinstance(cobj, dict):
+                return False, f"查询评论 ID {cid} 失败 (HTTP {code})"
+            body_txt = str(cobj.get("body") or "")
+        else:
+            inum = int(job["issue_number"])
+            code, iobj = _gitea_api(repo, token, f"issues/{inum}")
+            body_txt = str((iobj or {}).get("body") or "") if code == 200 else ""
+            ccode, clist = _gitea_api(repo, token, f"issues/{inum}/comments?limit=100")
+            if ccode == 200 and isinstance(clist, list):
+                body_txt += "\n" + "\n".join(str(c.get("body") or "") for c in clist)
+        for m in re.finditer(r"/attachments/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})", body_txt, re.I):
+            u = m.group(1).lower()
+            if u not in targets:
+                targets.append(u)
+        if not targets:
+            return False, "指定工单或评论中未找到 `/attachments/<uuid>` 链接"
+    else:
+        # 若未传具体目标，默认触发一次全量附件自动同步
+        note = _auto_sync_inbox_attachments(project_dir, repo, token)
+        return True, f"已完成全量 Gitea 附件自动同步：{note}\n请读取 `02_实验与验证/_inbox_copy/ATTACHMENTS_INDEX.tsv` 查看全部本地路径与 SHA-256。"
+
+    results = []
+    for idx, t in enumerate(targets):
+        cur_save = str(save_as) if (save_as and len(targets) == 1) else None
+        cur_exp = str(expected_sha) if (expected_sha and len(targets) == 1) else None
+        info = _download_single_gitea_attachment(project_dir, repo, token, t, save_as=cur_save, expected_sha256=cur_exp, unpack_to=None)
+        if unpack_to:
+            actual_unpack = (
+                f"02_实验与验证/_inbox_copy/unpack_{Path(info['local_path']).stem}"
+                if unpack_to == "__AUTO__" or len(targets) > 1
+                else str(unpack_to)
+            )
+            if info["local_path"].lower().endswith(".zip"):
+                target_u = _safe_rel_path(project_dir, actual_unpack, ("02_实验与验证", "05_Gitea协作同步区"))
+                files_u = _safe_extract_zip(project_dir / info["local_path"], target_u)
+                info["unpacked_to"] = str(target_u.relative_to(project_dir))
+                info["unpacked_count"] = len(files_u)
+                info["unpacked_files_sample"] = files_u[:25]
+        results.append(info)
+
+    _auto_sync_inbox_attachments(project_dir, repo, token)
+    lines = ["✅ Gitea 附件下载与校验完成："]
+    for r in results:
+        lines.append(
+            f"- **文件**：`{r['local_path']}`（原文件名 `{r['server_filename']}`）\n"
+            f"  - **大小**：`{r['bytes']}` 字节\n"
+            f"  - **SHA-256**：`{r['sha256']}`"
+        )
+        if r.get("unpacked_to"):
+            lines.append(f"  - **已解压至**：`{r['unpacked_to']}`（共 {r['unpacked_count']} 个文件：{', '.join(r['unpacked_files_sample'][:10])}）")
+    return True, "\n".join(lines)
+
+
 def sync_details(project, dotenv, pr_report=None):
     repo, user, token, _, words = _load_gitea_cfg(project, dotenv)
     if not token: raise ValueError('缺少 GITEA_TOKEN')
     folder = project/'05_Gitea协作同步区'
     if folder.resolve().parent != project.resolve(): raise PermissionError('同步区越界')
-    return issue_inbox.sync(folder,lambda endpoint:_gitea_api(repo,token,endpoint),
+    res = issue_inbox.sync(folder,lambda endpoint:_gitea_api(repo,token,endpoint),
         lambda item:_is_my_gitea_item(item,user,words + ['丙','C01','C02','C03','C04',user or 'query']),user,
         lambda numbers:_notify_macos('ResearchHub 工单更新',project.name,numbers+' 有新评论或回执'),
         Path.home()/'.local/state/researchhub/issues'/project.name,
         export=project/'02_实验与验证'/'_inbox_copy', pr_report=pr_report)
+    att_note = _auto_sync_inbox_attachments(project, repo, token)
+    return (res + "\n" + att_note).strip() if att_note else res
 
 
 def _gitea_api(repo_url: str, token: str, endpoint: str, method: str = "GET", payload: Optional[Dict[str, Any]] = None) -> Tuple[int, Any]:
@@ -646,7 +958,14 @@ def _handle_gitea_comment_issue(project_dir: Path, job: Dict[str, Any], dotenv: 
     def fetch():
         return gitea_mail.context(lambda ep: _gitea_api(repo,token,ep), num, issue_inbox.pages)
     if action == 'gitea_issue_context':
-        return True, gitea_mail.snapshot(project_dir,fetch(),root)
+        snap_msg = gitea_mail.snapshot(project_dir,fetch(),root)
+        try:
+            att_note = _auto_sync_inbox_attachments(project_dir, repo, token)
+            if att_note:
+                snap_msg += "\n" + att_note
+        except Exception:
+            pass
+        return True, snap_msg
     return gitea_mail.guarded_reply(project_dir,root,job,user,_resolve_body_text(project_dir,job),fetch,
         lambda body: _gitea_api(repo,token,f'issues/{num}/comments',method='POST',payload={'body':body}))
 
@@ -820,6 +1139,8 @@ def _execute_single_job(project_dir: Path, run_path: Path, jf_name: str, dotenv:
             ok, detail = _handle_gitea_create_issue(project_dir, job, dotenv)
         elif action in ("gitea_comment_issue", "gitea_issue_context", "gitea_pending", "gitea_mark_event"):
             ok, detail = _handle_gitea_comment_issue(project_dir, job, dotenv)
+        elif action in ("gitea_download_attachment", "gitea_fetch_attachment", "gitea_download"):
+            ok, detail = _handle_gitea_download_attachment(project_dir, job, dotenv)
         elif action == "tailscale_cp":
             ok, detail = _handle_tailscale_cp(project_dir, job)
         elif action == "lit_fetch":
